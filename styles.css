@@ -662,6 +662,17 @@ body {
     z-index: 15;
     flex-shrink: 0;
 }
+
+.top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.top-bar-logo {
+    height: 28px;
+    width: auto;
+}
 .top-bar-title {
     font-weight: 600;
     color: var(--text-main);
