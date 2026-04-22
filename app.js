@@ -13,6 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let applicantsData = [];
     let originalFilename = 'applicants';
 
+    function updateTopBarTitle(name) {
+        const titleEl = document.getElementById('topBarTitle');
+        if (titleEl) titleEl.textContent = name;
+    }
+
     // Rating state
     let currentApplicantEmail = null;
     let weights = JSON.parse(localStorage.getItem('evalWeights')) || { bsc: 4, msc: 32, research: 16, prof: 8, english: 8, cv: 32 };
@@ -258,6 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         originalFilename = file.name.replace(/\.[^/.]+$/, "");
+        updateTopBarTitle(originalFilename);
         uploadStatus.textContent = "Processing file...";
 
         const reader = new FileReader();
@@ -810,6 +816,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             applicantsData = JSON.parse(cachedFile);
             originalFilename = localStorage.getItem('cachedFilename') || 'applicants';
+            updateTopBarTitle(originalFilename);
             
             landingPage.classList.add("hidden");
             appContainer.classList.remove("hidden");
