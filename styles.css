@@ -432,6 +432,12 @@ body {
 .mt-4 {
     margin-top: 24px;
 }
+.mt-3 {
+    margin-top: 16px;
+}
+.mt-2 {
+    margin-top: 10px;
+}
 
 .comments-text {
     font-size: 0.95rem;

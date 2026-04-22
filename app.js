@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const discoveryStats = document.getElementById("discoveryStats");
     const startEvaluationBtn = document.getElementById("startEvaluationBtn");
     const uploadStatus = document.getElementById("uploadStatus");
+    const sidebarStats = document.getElementById("sidebarStats");
 
     const applicantList = document.getElementById("applicantList");
     const searchInput = document.getElementById("searchInput");
@@ -255,6 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     activeItem.textContent = calculateScore(currentApplicantEmail).toFixed(1);
                     activeItem.classList.add('evaluated');
                 }
+                updateApplicantList();
             });
 
             // Clamp the displayed value when leaving the field
@@ -439,40 +441,85 @@ document.addEventListener("DOMContentLoaded", () => {
         const evalFilter = evalFilterSelect ? evalFilterSelect.value : 'all';
         const markedFilter = markedFilterSelect ? markedFilterSelect.value : 'all';
         
-        let filtered = applicantsData.filter(app => {
-            const getVal = (key, altKeys = []) => {
-                let entry = app[key];
-                for (let i = 0; i < altKeys.length && entry === undefined; i++) {
-                    entry = app[altKeys[i]];
-                }
-                return entry && typeof entry === 'object' ? entry.value : entry;
-            };
-            const firstName = (getVal('General Information First name') || '').toLowerCase();
-            const lastName = (getVal('Last name') || '').toLowerCase();
-            const matchesSearch = firstName.includes(term) || lastName.includes(term);
-            if (!matchesSearch) return false;
-            
-            // Evaluation filter
-            const email = getVal('Email');
+        const getVal = (app, key, altKeys = []) => {
+            let entry = app[key];
+            for (let i = 0; i < altKeys.length && entry === undefined; i++) {
+                entry = app[altKeys[i]];
+            }
+            return entry && typeof entry === 'object' ? entry.value : entry;
+        };
+
+        // 1. Filter by search term first (common to everything)
+        const searchFiltered = applicantsData.filter(app => {
+            const firstName = (getVal(app, 'General Information First name') || '').toLowerCase();
+            const lastName = (getVal(app, 'Last name') || '').toLowerCase();
+            return firstName.includes(term) || lastName.includes(term);
+        });
+
+        // 2. Calculate counts for Evaluation Dropdown (depends on Search + Marked Filter)
+        const forEvalDropdown = searchFiltered.filter(app => {
+            const email = getVal(app, 'Email');
+            const isMarked = !!markedCandidates[email];
+            if (markedFilter === 'marked' && !isMarked) return false;
+            if (markedFilter === 'notMarked' && isMarked) return false;
+            return true;
+        });
+        const evalCounts = { all: forEvalDropdown.length, evaluated: 0, notEvaluated: 0 };
+        forEvalDropdown.forEach(app => {
+            const email = getVal(app, 'Email');
+            const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
+            if (hasRatings) evalCounts.evaluated++;
+            else evalCounts.notEvaluated++;
+        });
+
+        // 3. Calculate counts for Marked Dropdown (depends on Search + Eval Filter)
+        const forMarkedDropdown = searchFiltered.filter(app => {
+            const email = getVal(app, 'Email');
             const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
             if (evalFilter === 'evaluated' && !hasRatings) return false;
             if (evalFilter === 'notEvaluated' && hasRatings) return false;
-            
-            // Marked filter
+            return true;
+        });
+        const markedCounts = { all: forMarkedDropdown.length, marked: 0, notMarked: 0 };
+        forMarkedDropdown.forEach(app => {
+            const email = getVal(app, 'Email');
+            if (markedCandidates[email]) markedCounts.marked++;
+            else markedCounts.notMarked++;
+        });
+
+        // 4. Final filtered list (Search + Eval + Marked)
+        let filtered = searchFiltered.filter(app => {
+            const email = getVal(app, 'Email');
+            const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
             const isMarked = !!markedCandidates[email];
+            
+            if (evalFilter === 'evaluated' && !hasRatings) return false;
+            if (evalFilter === 'notEvaluated' && hasRatings) return false;
             if (markedFilter === 'marked' && !isMarked) return false;
             if (markedFilter === 'notMarked' && isMarked) return false;
             
             return true;
         });
 
+        // Update Dropdown Labels
+        if (evalFilterSelect) {
+            evalFilterSelect.options[0].textContent = `Evaluation: Show All (${evalCounts.all})`;
+            evalFilterSelect.options[1].textContent = `Only Evaluated (${evalCounts.evaluated})`;
+            evalFilterSelect.options[2].textContent = `Only Not Evaluated (${evalCounts.notEvaluated})`;
+        }
+        if (markedFilterSelect) {
+            markedFilterSelect.options[0].textContent = `Marked: Show All (${markedCounts.all})`;
+            markedFilterSelect.options[1].textContent = `Only Marked (${markedCounts.marked})`;
+            markedFilterSelect.options[2].textContent = `Only Not Marked (${markedCounts.notMarked})`;
+        }
+
+        // Update Stats
+        if (sidebarStats) {
+            sidebarStats.textContent = `Showing ${filtered.length} of ${applicantsData.length} applicants`;
+        }
+
         if (sortVal !== 'original') {
             filtered.sort((a, b) => {
-                const getVal = (app, key) => { 
-                    const e = app[key]; 
-                    return e && typeof e === 'object' ? e.value : e; 
-                };
-                
                 if (sortVal === 'nameAsc') {
                     const nameA = (getVal(a, 'Last name') + ' ' + getVal(a, 'General Information First name')).toLowerCase();
                     const nameB = (getVal(b, 'Last name') + ' ' + getVal(b, 'General Information First name')).toLowerCase();
@@ -521,6 +568,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 <h4>${firstName} ${lastName}</h4>
                 <p>${country}</p>
             `;
+            
+            if (email === currentApplicantEmail) {
+                li.classList.add('active');
+            }
             
             li.addEventListener('click', () => {
                 // Remove active class from all
