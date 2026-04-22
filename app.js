@@ -110,41 +110,63 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    const importGradesBtn = document.getElementById("importGradesBtn");
-    const importGradesInput = document.getElementById("importGradesInput");
-    if (importGradesBtn && importGradesInput) {
-        importGradesBtn.addEventListener('click', () => importGradesInput.click());
-        importGradesInput.addEventListener('change', (e) => {
+    // --- Save State (JSON) ---
+    const saveStateBtn = document.getElementById("saveStateBtn");
+    if (saveStateBtn) {
+        saveStateBtn.addEventListener('click', () => {
+            const state = {
+                version: 1,
+                weights: weights,
+                ratings: ratings,
+                reviewerNotes: reviewerNotes,
+                markedCandidates: markedCandidates
+            };
+            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${originalFilename}_review_state.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // --- Load State (JSON) ---
+    const loadStateBtn = document.getElementById("loadStateBtn");
+    const loadStateInput = document.getElementById("loadStateInput");
+    if (loadStateBtn && loadStateInput) {
+        loadStateBtn.addEventListener('click', () => loadStateInput.click());
+        loadStateInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: "array" });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                    const state = JSON.parse(event.target.result);
                     
-                    let count = 0;
-                    jsonData.forEach(row => {
-                        if (row.Email) {
-                            if (!ratings[row.Email]) ratings[row.Email] = {};
-                            ratings[row.Email].bsc = parseInt(row["BSc Grade"], 10) || 0;
-                            ratings[row.Email].msc = parseInt(row["MSc Grade"], 10) || 0;
-                            ratings[row.Email].research = parseInt(row["Research Exp."], 10) || 0;
-                            ratings[row.Email].prof = parseInt(row["Prof. Exp."], 10) || 0;
-                            ratings[row.Email].english = parseInt(row["English Skills"], 10) || 0;
-                            ratings[row.Email].cv = parseInt(row["CV & Cover Letter"], 10) || 0;
-                            if (row["Reviewer Notes"] !== undefined && row["Reviewer Notes"] !== '') {
-                                reviewerNotes[row.Email] = String(row["Reviewer Notes"]);
-                            }
-                            count++;
-                        }
-                    });
+                    if (state.ratings) {
+                        ratings = state.ratings;
+                        localStorage.setItem('evalRatings', JSON.stringify(ratings));
+                    }
+                    if (state.reviewerNotes) {
+                        reviewerNotes = state.reviewerNotes;
+                        localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
+                    }
+                    if (state.markedCandidates) {
+                        markedCandidates = state.markedCandidates;
+                        localStorage.setItem('markedCandidates', JSON.stringify(markedCandidates));
+                    }
+                    if (state.weights) {
+                        weights = state.weights;
+                        localStorage.setItem('evalWeights', JSON.stringify(weights));
+                        Object.keys(weights).forEach(k => {
+                            const el = document.getElementById('w_' + k);
+                            if(el) el.value = weights[k];
+                        });
+                    }
                     
-                    localStorage.setItem('evalRatings', JSON.stringify(ratings));
-                    localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
-                    alert(`Successfully imported grades for ${count} applicants.`);
+                    const count = Object.keys(state.ratings || {}).length;
+                    alert(`Successfully loaded review state (${count} rated applicants).`);
                     
                     if (currentApplicantEmail) {
                         const userRatings = ratings[currentApplicantEmail] || {};
@@ -159,13 +181,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                     updateApplicantList();
                 } catch (error) {
-                    console.error("Error importing grades:", error);
-                    alert("Error parsing the grades file. Please ensure it's a valid export format.");
+                    console.error("Error loading state:", error);
+                    alert("Error parsing the state file. Please ensure it's a valid review state JSON.");
                 }
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsText(file);
             e.target.value = '';
         });
+    }
+
+    // Helper to clamp a value to 0-10
+    function clampScore(val) {
+        if (isNaN(val)) return 0;
+        return Math.max(0, Math.min(10, val));
     }
 
     Object.keys(evalInputs).forEach(k => {
@@ -174,10 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!currentApplicantEmail) return;
                 if (!ratings[currentApplicantEmail]) ratings[currentApplicantEmail] = {};
                 
-                let val = parseInt(evalInputs[k].value, 10);
-                if (isNaN(val)) val = 0;
-                if (val < 0) val = 0;
-                if (val > 10) val = 10;
+                let val = clampScore(parseInt(evalInputs[k].value, 10));
                 
                 ratings[currentApplicantEmail][k] = val;
                 localStorage.setItem('evalRatings', JSON.stringify(ratings));
@@ -189,6 +214,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     activeItem.classList.add('evaluated');
                 }
             });
+
+            // Clamp the displayed value when leaving the field
+            evalInputs[k].addEventListener('blur', () => {
+                if (evalInputs[k].value === '') return;
+                let val = clampScore(parseInt(evalInputs[k].value, 10));
+                evalInputs[k].value = val;
+            });
         }
     });
 
@@ -196,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!ratings[email]) return 0;
         let score = 0;
         Object.keys(weights).forEach(k => {
-            const s = ratings[email][k] || 0;
+            const s = clampScore(ratings[email][k] || 0);
             score += s * (weights[k] / 100);
         });
         return score;
