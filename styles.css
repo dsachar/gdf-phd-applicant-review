@@ -76,10 +76,11 @@ body {
     padding: 10px 10px 10px 36px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-family: inherit;
     transition: var(--transition);
     outline: none;
+    box-sizing: border-box;
 }
 
 .search-container input:focus {
@@ -555,6 +556,9 @@ body {
 .modal-content {
     width: 90%;
     max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 .modal-header {
     display: flex;
@@ -842,9 +846,11 @@ body {
     background: white;
     color: var(--text-main);
     font-size: 0.85rem;
+    font-family: inherit;
     cursor: pointer;
     outline: none;
     transition: var(--transition);
+    box-sizing: border-box;
 }
 .sort-select:focus {
     border-color: var(--accent-color);
@@ -854,7 +860,7 @@ body {
 /* Filter Checkbox */
 .filter-container {
     margin-top: 10px;
-    padding: 0 4px;
+    padding: 0;
 }
 .filter-label {
     display: flex;
@@ -882,6 +888,7 @@ body {
     outline: none;
     transition: var(--transition);
     font-family: inherit;
+    box-sizing: border-box;
 }
 .filter-select:focus {
     border-color: var(--accent-color);
