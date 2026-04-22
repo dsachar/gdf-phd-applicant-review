@@ -654,6 +654,42 @@ body {
 .eval-input input:focus {
     border-color: var(--accent-color); outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
+
+/* Reviewer Notes */
+.reviewer-notes-container {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+.reviewer-notes-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-main);
+}
+.reviewer-notes {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: var(--transition);
+    background: white;
+    color: var(--text-main);
+    min-height: 80px;
+}
+.reviewer-notes:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.reviewer-notes::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
 .applicant-score {
     float: right;
     background: #f1f5f9;

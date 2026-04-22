@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let weights = JSON.parse(localStorage.getItem('evalWeights')) || { bsc: 4, msc: 32, research: 16, prof: 8, english: 8, cv: 32 };
     let ratings = JSON.parse(localStorage.getItem('evalRatings')) || {};
     let markedCandidates = JSON.parse(localStorage.getItem('markedCandidates')) || {};
+    let reviewerNotes = JSON.parse(localStorage.getItem('reviewerNotes')) || {};
 
     // Settings Modal & Evaluation UI
     const settingsBtn = document.getElementById("settingsBtn");
@@ -69,9 +70,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 alert("No grades to export yet.");
                 return;
             }
+            // Collect all emails that have either ratings or notes
+            const allEmails = new Set([...Object.keys(ratings), ...Object.keys(reviewerNotes)]);
             const exportData = [];
-            Object.keys(ratings).forEach(email => {
-                const r = ratings[email];
+            allEmails.forEach(email => {
+                const r = ratings[email] || {};
                 exportData.push({
                     "Email": email,
                     "BSc Grade": r.bsc || 0,
@@ -80,12 +83,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     "Prof. Exp.": r.prof || 0,
                     "English Skills": r.english || 0,
                     "CV & Cover Letter": r.cv || 0,
-                    "Total Score": parseFloat(calculateScore(email).toFixed(2))
+                    "Total Score": parseFloat(calculateScore(email).toFixed(2)),
+                    "Reviewer Notes": reviewerNotes[email] || ''
                 });
             });
             const ws = XLSX.utils.json_to_sheet(exportData);
             
-            // Add actual Excel formulas for the Total Score
+            // Add actual Excel formulas for the Total Score (column H = index 7)
             for (let i = 0; i < exportData.length; i++) {
                 const rowNum = i + 2; // 1 for header, 1 for 1-based index
                 const formula = `B${rowNum}*(${weights.bsc}/100)+C${rowNum}*(${weights.msc}/100)+D${rowNum}*(${weights.research}/100)+E${rowNum}*(${weights.prof}/100)+F${rowNum}*(${weights.english}/100)+G${rowNum}*(${weights.cv}/100)`;
@@ -95,6 +99,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 const val = parseFloat(calculateScore(exportData[i].Email).toFixed(2));
                 ws[cellRef] = { t: 'n', v: val, f: formula };
             }
+
+            // Set column width for Reviewer Notes (column I = index 8)
+            if (!ws['!cols']) ws['!cols'] = [];
+            ws['!cols'][8] = { wch: 40 };
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Grades");
@@ -127,11 +135,15 @@ document.addEventListener("DOMContentLoaded", () => {
                             ratings[row.Email].prof = parseInt(row["Prof. Exp."], 10) || 0;
                             ratings[row.Email].english = parseInt(row["English Skills"], 10) || 0;
                             ratings[row.Email].cv = parseInt(row["CV & Cover Letter"], 10) || 0;
+                            if (row["Reviewer Notes"] !== undefined && row["Reviewer Notes"] !== '') {
+                                reviewerNotes[row.Email] = String(row["Reviewer Notes"]);
+                            }
                             count++;
                         }
                     });
                     
                     localStorage.setItem('evalRatings', JSON.stringify(ratings));
+                    localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
                     alert(`Successfully imported grades for ${count} applicants.`);
                     
                     if (currentApplicantEmail) {
@@ -142,6 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             }
                         });
                         updateScore(currentApplicantEmail);
+                        const notesEl = document.getElementById('reviewerNotes');
+                        if (notesEl) notesEl.value = reviewerNotes[currentApplicantEmail] || '';
                     }
                     updateApplicantList();
                 } catch (error) {
@@ -478,6 +492,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
         updateScore(currentApplicantEmail);
+        
+        // Load reviewer notes for this applicant
+        const notesEl = document.getElementById('reviewerNotes');
+        if (notesEl) {
+            notesEl.value = reviewerNotes[currentApplicantEmail] || '';
+            // Remove old listener by cloning
+            const newNotesEl = notesEl.cloneNode(true);
+            notesEl.parentNode.replaceChild(newNotesEl, notesEl);
+            newNotesEl.addEventListener('input', () => {
+                if (!currentApplicantEmail) return;
+                reviewerNotes[currentApplicantEmail] = newNotesEl.value;
+                localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
+            });
+        }
         
         // Update mark toggle button
         const markToggleBtn = document.getElementById('markToggleBtn');
