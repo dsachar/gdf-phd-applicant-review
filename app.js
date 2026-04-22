@@ -59,9 +59,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         localStorage.setItem('evalWeights', JSON.stringify(weights));
         settingsModal.classList.add('hidden');
-        if (currentApplicantEmail) updateScore(currentApplicantEmail);
-        updateApplicantList();
+        if (currentApplicantEmail) {
+            updateScore(currentApplicantEmail);
+            updateApplicantList();
+        }
     });
+
+    const resetSettingsBtn = document.getElementById("resetSettingsBtn");
+    if (resetSettingsBtn) {
+        resetSettingsBtn.addEventListener('click', () => {
+            const defaultWeights = { bsc: 4, msc: 32, research: 16, prof: 8, english: 8, cv: 32 };
+            Object.keys(defaultWeights).forEach(k => {
+                const el = document.getElementById('w_' + k);
+                if (el) el.value = defaultWeights[k];
+            });
+            document.getElementById('weightTotal').textContent = `Total: 100%`;
+        });
+    }
 
     const exportGradesBtn = document.getElementById("exportGradesBtn");
     if (exportGradesBtn) {
