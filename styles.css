@@ -632,6 +632,16 @@ body {
     z-index: 15;
     flex-shrink: 0;
 }
+.top-bar-title {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+    flex-shrink: 0;
+}
 .top-bar-actions {
     display: flex;
     align-items: center;
