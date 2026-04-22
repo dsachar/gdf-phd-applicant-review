@@ -45,7 +45,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 320px;
+    width: 260px;
     background-color: var(--sidebar-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -73,10 +73,10 @@ body {
 
 .search-container input {
     width: 100%;
-    padding: 10px 10px 10px 36px;
+    padding: 6px 10px 6px 32px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-family: inherit;
     transition: var(--transition);
     outline: none;
@@ -436,7 +436,7 @@ body {
     margin-top: 16px;
 }
 .mt-2 {
-    margin-top: 10px;
+    margin-top: 6px;
 }
 
 .comments-text {
@@ -880,12 +880,12 @@ body {
 }
 .sort-select {
     width: 100%;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: white;
     color: var(--text-main);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-family: inherit;
     cursor: pointer;
     outline: none;
@@ -918,12 +918,12 @@ body {
 
 .filter-select {
     width: 100%;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     background: white;
     color: var(--text-main);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
     outline: none;
     transition: var(--transition);

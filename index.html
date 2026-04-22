@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PhD Applicant Review</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=1.2">
+    <link rel="stylesheet" href="styles.css?v=1.3">
     <!-- SheetJS for client-side Excel parsing -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -132,7 +132,10 @@
     <div id="appContainer" class="app-container hidden">
         <!-- Top Bar -->
         <header class="top-bar">
-            <div id="topBarTitle" class="top-bar-title"></div>
+            <div class="top-bar-left">
+                <img src="logo-GFD.png" alt="GreenFieldData" class="top-bar-logo">
+                <div id="topBarTitle" class="top-bar-title"></div>
+            </div>
             <div class="top-bar-actions">
                 <button id="saveStateBtn" class="top-bar-btn" title="Export evaluation state to file">
                     <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -163,7 +166,6 @@
         <!-- Sidebar: List of Applicants -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <img src="logo-GFD.png" alt="GreenFieldData" class="sidebar-logo">
                 <div class="sidebar-section">
                     <h2 class="section-title">Applicants</h2>
                     <div class="search-container mt-2">
@@ -360,6 +362,6 @@
         </main>
         </div><!-- .app-body -->
     </div>
-    <script src="app.js?v=1.2"></script>
+    <script src="app.js?v=1.3"></script>
 </body>
 </html>
