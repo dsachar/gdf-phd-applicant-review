@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhD Applicant Review</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- SheetJS for client-side Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- Landing Page for File Upload -->
+    <div id="landingPage" class="landing-page">
+        <div class="landing-layout">
+            <!-- Upload Widget -->
+            <div class="upload-container glass card">
+                <img src="logo-GFD.png" alt="GreenFieldData Logo" class="landing-logo">
+                <h1>Select Applicant Data</h1>
+                <p class="subtitle">Select the <strong>.xlsx</strong> spreadsheet exported from EUSurvey to begin the review process.</p>
+                
+                <div class="file-input-wrapper">
+                    <input type="file" id="excelUpload" accept=".xlsx, .xls" class="file-input" />
+                    <label for="excelUpload" class="file-input-label">Select Excel File</label>
+                </div>
+                <p id="uploadStatus" class="upload-status"></p>
+
+                <div class="privacy-notice">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <span>Your data never leaves your computer. All processing happens locally in your browser.</span>
+                </div>
+            </div>
+
+            <!-- EUSurvey Instructions -->
+            <div class="instructions-card glass card">
+                <div class="instructions-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <h2>How to export data from EUSurvey</h2>
+                </div>
+                <p class="instructions-intro">Export your data as an Excel file and include uploaded attachments. Here is how:</p>
+                <ul class="instructions-list">
+                    <li>
+                        <span class="step-num">1</span>
+                        <span><strong>Access your survey:</strong> Log in to <a href="https://ec.europa.eu/eusurvey/" target="_blank">EUSurvey</a> and open the specific survey you are managing.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">2</span>
+                        <span><strong>Go to Results:</strong> Click on the <strong>Results</strong> tab in the survey's top menu.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">3</span>
+                        <span><strong>Initiate Export:</strong> Click the <strong>Export</strong> button.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">4</span>
+                        <span><strong>Select Format:</strong> Choose <strong>Excel (.xlsx)</strong> as your desired data export format.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">5</span>
+                        <span><strong>Include Attachments:</strong> Ensure you check the option to include <strong>Uploaded files</strong>. EUSurvey will package everything into a single <strong>.zip</strong> archive.</span>
+                    </li>
+                    <li>
+                        <span class="step-num">6</span>
+                        <span><strong>Download &amp; Extract:</strong> Download the archive and extract it. Then select the <strong>.xlsx</strong> file using the button above to begin your review.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Evaluation Weights (%)</h2>
+                <button id="closeSettings" class="close-btn">&times;</button>
+            </div>
+            <p class="text-muted" style="margin-bottom: 15px; font-size: 0.9rem;">Adjust the weights for the rating criteria. Total must equal 100%.</p>
+            <div class="weights-grid">
+                <div class="weight-item"><label>BSc Grade</label><input type="number" id="w_bsc" value="4"></div>
+                <div class="weight-item"><label>MSc Grade</label><input type="number" id="w_msc" value="32"></div>
+                <div class="weight-item"><label>Research Exp.</label><input type="number" id="w_research" value="16"></div>
+                <div class="weight-item"><label>Prof. Exp.</label><input type="number" id="w_prof" value="8"></div>
+                <div class="weight-item"><label>English</label><input type="number" id="w_english" value="8"></div>
+                <div class="weight-item"><label>CV & Cover Letter</label><input type="number" id="w_cv" value="32"></div>
+            </div>
+            <div class="modal-footer">
+                <span id="weightTotal" class="weight-total">Total: 100%</span>
+                <button id="saveSettings" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application UI (Hidden Initially) -->
+    <div id="appContainer" class="app-container hidden">
+        <!-- Sidebar: List of Applicants -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="logo-GFD.png" alt="GreenFieldData" class="sidebar-logo">
+                <div class="sidebar-section">
+                    <h2 class="section-title">Grades Management</h2>
+                    <div class="grades-actions">
+                        <input type="file" id="importGradesInput" accept=".xlsx, .xls" class="hidden">
+                        <button id="importGradesBtn" class="action-icon-btn" title="Import Grades">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <span>Import Grades</span>
+                        </button>
+                        <button id="exportGradesBtn" class="action-icon-btn" title="Export Grades">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            <span>Export Grades</span>
+                        </button>
+                        <button id="settingsBtn" class="action-icon-btn" title="Evaluation Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            <span>Adjust Weights</span>
+                        </button>
+                        <button id="clearDataBtn" class="action-icon-btn" title="Close Document">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                            <span>Close Document</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <hr class="sidebar-divider">
+
+                <div class="sidebar-section">
+                    <h2 class="section-title">Applicants</h2>
+                    <div class="search-container mt-2">
+                        <input type="text" id="searchInput" placeholder="Search by name...">
+                        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <div class="sort-container mt-2">
+                        <select id="sortSelect" class="sort-select">
+                            <option value="original">Sort by: Original Order</option>
+                            <option value="nameAsc">Sort by: Name (Last, First)</option>
+                            <option value="scoreDesc">Sort by: Rating (Highest first)</option>
+                            <option value="scoreAsc">Sort by: Rating (Lowest first)</option>
+                        </select>
+                    </div>
+                    <div class="filter-container mt-2">
+                        <select id="evalFilterSelect" class="filter-select">
+                            <option value="all">Evaluation: Show All</option>
+                            <option value="evaluated">Only Evaluated</option>
+                            <option value="notEvaluated">Only Not Evaluated</option>
+                        </select>
+                    </div>
+                    <div class="filter-container mt-2">
+                        <select id="markedFilterSelect" class="filter-select">
+                            <option value="all">Marked: Show All</option>
+                            <option value="marked">Only Marked</option>
+                            <option value="notMarked">Only Not Marked</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <ul id="applicantList" class="applicant-list">
+                <!-- Applicant items will be injected here via JS -->
+            </ul>
+        </aside>
+
+        <!-- Main Content: Applicant Details -->
+        <main class="main-content">
+            <div id="welcomeMessage" class="welcome-message">
+                <h3>Select an applicant to view details</h3>
+                <p>Use the sidebar to navigate through the candidates.</p>
+            </div>
+            
+            <div id="applicantDetails" class="applicant-details hidden">
+                <!-- Header Section -->
+                <section class="profile-header card glass">
+                    <div class="profile-info">
+                        <div class="profile-top-row">
+                            <h1 id="detailName">Name</h1>
+                            <button id="markToggleBtn" class="mark-toggle-btn" title="Mark this candidate">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                            </button>
+                        </div>
+                        <div class="user-meta">
+                            <span id="detailUsername" class="text-muted"></span>
+                            <span id="detailGender" class="text-muted"></span>
+                        </div>
+                        <p class="subtitle" id="detailLocation">City, Country</p>
+                        <p class="preference-badge" id="detailPreference" style="color: var(--accent-color); font-weight: 500; font-size: 0.9rem; margin-top: 4px;"></p>
+                        <div class="contact-links mt-2">
+                            <a id="linkEmail" href="#" target="_blank" class="badge">Email</a>
+                            <a id="linkWebsite" href="#" target="_blank" class="badge hidden">Website</a>
+                            <a id="linkLinkedIn" href="#" target="_blank" class="badge hidden">LinkedIn</a>
+                            <a id="linkOrcid" href="#" target="_blank" class="badge hidden">ORCID</a>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Evaluation Panel -->
+                <section class="card evaluation-panel">
+                    <div class="eval-header">
+                        <h2>Rating & Evaluation</h2>
+                        <div class="total-score">Score: <strong id="evalTotalScore">0.00</strong> / 10</div>
+                    </div>
+                    <div class="eval-grid">
+                        <div class="eval-input">
+                            <label>BSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
+                            <input type="number" id="eval_bsc" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                        <div class="eval-input">
+                            <label>MSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
+                            <input type="number" id="eval_msc" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                        <div class="eval-input">
+                            <label>Research Exp. (0-10) <span class="help-icon" data-tooltip="Cumulative points (Max 10). Journals: Q4=1, Q3=2, Q2=3, Q1=4. Conf: C=1, B=2, A=3, A*=4. Patent=5">?</span></label>
+                            <input type="number" id="eval_research" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                        <div class="eval-input">
+                            <label>Prof. Exp. (0-10) <span class="help-icon" data-tooltip="2 points per year of experience (Max 10)">?</span></label>
+                            <input type="number" id="eval_prof" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                        <div class="eval-input">
+                            <label>English Skills (0-10) <span class="help-icon" data-tooltip="A1=2, A2=4, B1=6, B2=8, C1=10">?</span></label>
+                            <input type="number" id="eval_english" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                        <div class="eval-input">
+                            <label>CV & Cover Letter (0-10) <span class="help-icon" data-tooltip="Manual score based on relevance to PhD topic">?</span></label>
+                            <input type="number" id="eval_cv" min="0" max="10" step="1" placeholder="0">
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid-layout">
+                    <!-- Education Section -->
+                    <section class="card">
+                        <h2>Education</h2>
+                        <div class="edu-item">
+                            <h3>Master's Degree <span class="year" id="detailMscYear"></span></h3>
+                            <p class="country text-muted" id="detailMscCountry"></p>
+                            <p class="university" id="detailMscUni"></p>
+                            <p class="program" id="detailMscProgram"></p>
+                            <p class="grade">Grade: <strong id="detailMscGrade"></strong></p>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="edu-item">
+                            <h3>Bachelor's Degree <span class="year" id="detailBscYear"></span></h3>
+                            <p class="country text-muted" id="detailBscCountry"></p>
+                            <p class="university" id="detailBscUni"></p>
+                            <p class="program" id="detailBscProgram"></p>
+                            <p class="grade">Grade: <strong id="detailBscGrade"></strong></p>
+                        </div>
+                    </section>
+
+                    <!-- Master Thesis Section -->
+                    <section class="card">
+                        <h2>Master Thesis</h2>
+                        <h3 id="detailThesisTitle"></h3>
+                        <div class="info-row">
+                            <span class="label">Supervisors:</span>
+                            <span id="detailThesisSupervisors"></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Emails:</span>
+                            <span id="detailThesisSupervisorEmails"></span>
+                        </div>
+                        <div class="info-row mt-2" id="detailThesisUrlContainer">
+                            <span class="label">Thesis URL:</span>
+                            <a id="detailThesisUrl" href="#" target="_blank" class="external-link">Download Link</a>
+                        </div>
+                    </section>
+                </div>
+                
+                <div class="grid-layout mt-4">
+                    <!-- References Section -->
+                    <section class="card">
+                        <h2>References</h2>
+                        <div class="info-row">
+                            <span class="label">Contact Emails:</span>
+                            <span id="detailReferences"></span>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Skills & Interests -->
+                <section class="card">
+                    <h2>Research Interests & Skills</h2>
+                    <div class="skills-grid">
+                        <div class="skill-category">
+                            <h3>Primary Interests</h3>
+                            <ul id="detailInterests" class="skill-list"></ul>
+                        </div>
+                        <div class="skill-category">
+                            <h3>Technical Skills</h3>
+                            <ul id="detailTechSkills" class="skill-list"></ul>
+                        </div>
+                        <div class="skill-category">
+                            <h3>Languages</h3>
+                            <p id="detailLanguages"></p>
+                            <p>English Level: <strong id="detailEnglishLevel"></strong></p>
+                        </div>
+                    </div>
+                    <div class="optional-comments mt-4">
+                        <h3>Optional Comments</h3>
+                        <p id="detailComments" class="comments-text"></p>
+                    </div>
+                </section>
+
+                <!-- Documents Section -->
+                <section class="card">
+                    <h2>Documents</h2>
+                    <div class="documents-grid" id="detailDocuments">
+                        <!-- Document links injected here -->
+                    </div>
+                    <div class="mt-4" id="detailExternalDocsContainer">
+                        <h3>External Document Link</h3>
+                        <a id="detailExternalDocs" href="#" target="_blank" class="external-link">Open External Folder</a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

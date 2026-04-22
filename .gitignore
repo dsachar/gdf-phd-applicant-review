@@ -1,0 +1,9 @@
+node_modules/
+data/
+.DS_Store
+*.zip
+sample.xlsx
+test_grades.xlsx
+columns.txt
+export_columns.txt
+export_head.csv
