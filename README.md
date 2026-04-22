@@ -30,9 +30,9 @@ Extracting the downloaded `.zip` file will give you access to the `.xlsx` spread
 ## 2. Loading Data into the Dashboard
 
 1. Open `index.html` in your browser.
-2. Click inside the dashed upload box and select the **`.xlsx`** file you extracted from the EUSurvey download (e.g., `Export771277.xlsx`).
-3. The dashboard will automatically parse the spreadsheet, find the header rows, and load all the candidates.
-4. *Note: The app will remember the last file you loaded in its local cache, so you won't have to upload it again if you accidentally refresh the page. To load a completely different file, simply click the **Close Document** button in the sidebar.*
+2. Click the **Select Survey Folder** button and select the **entire folder** you extracted from the EUSurvey download.
+3. The dashboard will automatically find the spreadsheet, identify all documents, and load the candidates.
+4. *Note: If multiple spreadsheets are found, you will be prompted to pick the correct one before starting.*
 
 ---
 

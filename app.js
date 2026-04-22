@@ -2,16 +2,25 @@ document.addEventListener("DOMContentLoaded", () => {
     // UI Elements
     const landingPage = document.getElementById("landingPage");
     const appContainer = document.getElementById("appContainer");
-    const excelUpload = document.getElementById("excelUpload");
+    const folderUpload = document.getElementById("folderUpload");
+    const folderUploadLabel = document.getElementById("folderUploadLabel");
+    const discoveryPanel = document.getElementById("discoveryPanel");
+    const discoveryPlaceholder = document.getElementById("discoveryPlaceholder");
+    const discoveredFolderName = document.getElementById("discoveredFolderName");
+    const excelSelect = document.getElementById("excelSelect");
+    const discoveryStats = document.getElementById("discoveryStats");
+    const startEvaluationBtn = document.getElementById("startEvaluationBtn");
     const uploadStatus = document.getElementById("uploadStatus");
 
     const applicantList = document.getElementById("applicantList");
     const searchInput = document.getElementById("searchInput");
     const welcomeMessage = document.getElementById("welcomeMessage");
     const applicantDetails = document.getElementById("applicantDetails");
-
+    
     let applicantsData = [];
     let originalFilename = 'applicants';
+    let fileMap = new Map();
+    let excelFiles = [];
 
     function updateTopBarTitle(name) {
         const titleEl = document.getElementById('topBarTitle');
@@ -24,6 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let ratings = JSON.parse(localStorage.getItem('evalRatings')) || {};
     let markedCandidates = JSON.parse(localStorage.getItem('markedCandidates')) || {};
     let reviewerNotes = JSON.parse(localStorage.getItem('reviewerNotes')) || {};
+    let docBasePath = localStorage.getItem('docBasePath') || 'data/';
 
     // Settings Modal & Evaluation UI
     const settingsBtn = document.getElementById("settingsBtn");
@@ -46,7 +56,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if(el) el.value = weights[k];
     });
 
-    if (settingsBtn) settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    if (settingsBtn) settingsBtn.addEventListener('click', () => {
+        const pathInput = document.getElementById('doc_base_path');
+        if (pathInput) pathInput.value = docBasePath;
+        settingsModal.classList.remove('hidden');
+    });
     if (closeSettings) closeSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
     if (saveSettings) saveSettings.addEventListener('click', () => {
         let total = 0;
@@ -62,6 +76,10 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Weights must total exactly 100%.");
             return;
         }
+        const pathInput = document.getElementById('doc_base_path');
+        if (pathInput) docBasePath = pathInput.value || 'data/';
+        localStorage.setItem('docBasePath', docBasePath);
+
         localStorage.setItem('evalWeights', JSON.stringify(weights));
         settingsModal.classList.add('hidden');
         if (currentApplicantEmail) {
@@ -138,7 +156,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 weights: weights,
                 ratings: ratings,
                 reviewerNotes: reviewerNotes,
-                markedCandidates: markedCandidates
+                markedCandidates: markedCandidates,
+                docBasePath: docBasePath
             };
             const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -182,6 +201,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             const el = document.getElementById('w_' + k);
                             if(el) el.value = weights[k];
                         });
+                    }
+                    if (state.docBasePath) {
+                        docBasePath = state.docBasePath;
+                        localStorage.setItem('docBasePath', docBasePath);
                     }
                     
                     const count = Object.keys(state.ratings || {}).length;
@@ -257,30 +280,77 @@ document.addEventListener("DOMContentLoaded", () => {
         if(evalTotalScore) evalTotalScore.textContent = calculateScore(email).toFixed(0);
     }
 
-    // --- File Upload & Parsing Logic ---
-    excelUpload.addEventListener("change", (e) => {
-        const file = e.target.files[0];
+    // --- Folder Upload & Discovery Logic ---
+    folderUpload.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        fileMap.clear();
+        excelFiles = [];
+        
+        // Find the root folder name from the first file's webkitRelativePath
+        const firstPath = files[0].webkitRelativePath;
+        const rootFolder = firstPath.split('/')[0];
+        discoveredFolderName.textContent = rootFolder;
+
+        files.forEach(file => {
+            const relPath = file.webkitRelativePath.replace(rootFolder + '/', '');
+            const lowerPath = relPath.toLowerCase();
+            
+            if (lowerPath.endsWith('.xlsx') || lowerPath.endsWith('.xls')) {
+                excelFiles.push(file);
+            } else {
+                fileMap.set(relPath, file);
+            }
+        });
+
+        if (excelFiles.length === 0) {
+            uploadStatus.textContent = "Error: No Excel files (.xlsx or .xls) found in this folder.";
+            discoveryPanel.classList.add('hidden');
+            return;
+        }
+
+        // Populate Spreadsheet Selection
+        excelSelect.innerHTML = '';
+        excelFiles.forEach((file, idx) => {
+            const option = document.createElement('option');
+            option.value = idx;
+            option.textContent = file.name;
+            excelSelect.appendChild(option);
+        });
+
+        const excelSelectionArea = document.getElementById('excelSelectionArea');
+        if (excelFiles.length === 1) {
+            excelSelectionArea.classList.add('hidden');
+        } else {
+            excelSelectionArea.classList.remove('hidden');
+        }
+
+        discoveryStats.textContent = `Found ${excelFiles.length} spreadsheet(s) and ${fileMap.size} document(s).`;
+        discoveryPanel.classList.remove('hidden');
+        if (discoveryPlaceholder) discoveryPlaceholder.classList.add('hidden');
+        if (folderUploadLabel) folderUploadLabel.textContent = "Select Different Survey Folder";
+        uploadStatus.textContent = "";
+    });
+
+    startEvaluationBtn.addEventListener('click', () => {
+        const selectedIdx = excelSelect.value;
+        const file = excelFiles[selectedIdx];
         if (!file) return;
 
         originalFilename = file.name.replace(/\.[^/.]+$/, "");
         updateTopBarTitle(originalFilename);
-        uploadStatus.textContent = "Processing file...";
+        uploadStatus.textContent = "Processing data...";
 
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const data = new Uint8Array(event.target.result);
-                // Parse workbook
                 const workbook = XLSX.read(data, { type: "array" });
-                
-                // Assuming data is in the first sheet
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
-                // Convert to JSON and extract hyperlinks
                 const range = XLSX.utils.decode_range(worksheet['!ref']);
                 
-                // Dynamically find the header row by looking for 'Email' or 'Last name'
                 let headerRowIndex = range.s.r;
                 for (let R = range.s.r; R <= Math.min(range.e.r, range.s.r + 10); ++R) {
                     let foundHeader = false;
@@ -303,7 +373,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 for (let C = range.s.c; C <= range.e.c; ++C) {
                     const cell = worksheet[XLSX.utils.encode_cell({c: C, r: headerRowIndex})];
                     let headerName = cell ? (cell.w || cell.v).toString().trim() : `Column_${C}`;
-                    
                     if (seenHeaders[headerName]) {
                         seenHeaders[headerName]++;
                         headerName = headerName + "_" + seenHeaders[headerName];
@@ -324,10 +393,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             isEmpty = false;
                             let value = cell.w || cell.v || '';
                             if (cell.l && cell.l.Target) {
-                                rowObj[headers[C]] = {
-                                    value: value,
-                                    link: cell.l.Target
-                                };
+                                rowObj[headers[C]] = { value: value, link: cell.l.Target };
                             } else {
                                 rowObj[headers[C]] = value;
                             }
@@ -335,13 +401,11 @@ document.addEventListener("DOMContentLoaded", () => {
                             rowObj[headers[C]] = '';
                         }
                     }
-                    if (!isEmpty) {
-                        jsonData.push(rowObj);
-                    }
+                    if (!isEmpty) jsonData.push(rowObj);
                 }
 
                 if (jsonData.length === 0) {
-                    uploadStatus.textContent = "Error: The uploaded spreadsheet appears to be empty.";
+                    uploadStatus.textContent = "Error: The selected spreadsheet appears to be empty.";
                     return;
                 }
 
@@ -350,15 +414,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     localStorage.setItem('cachedApplicants', JSON.stringify(applicantsData));
                     localStorage.setItem('cachedFilename', originalFilename);
-                } catch (e) {
-                    console.warn("Could not cache file data:", e);
-                }
+                } catch (e) {}
                 
-                // Transition UI
                 landingPage.classList.add("hidden");
                 appContainer.classList.remove("hidden");
-                
-                // Render List (with default sort)
                 updateApplicantList();
 
             } catch (error) {
@@ -366,11 +425,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 uploadStatus.textContent = "Error parsing file. Please ensure it's a valid .xlsx file.";
             }
         };
-
-        reader.onerror = () => {
-            uploadStatus.textContent = "Error reading file.";
-        };
-
         reader.readAsArrayBuffer(file);
     });
 
@@ -741,20 +795,41 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if(value && value !== '/' && value.trim() !== '') {
                 const files = value.split(';').map(f => f.trim());
-                files.forEach((file, idx) => {
-                    if(!file) return;
+                files.forEach((fileName, idx) => {
+                    if(!fileName) return;
                     const a = document.createElement('a');
                     a.className = 'doc-btn';
                     
-                    if(link) {
-                        a.href = 'data/' + link + '/' + file;
+                    // Try to find the file in the file map
+                    let fileObject = null;
+                    const possiblePaths = [
+                        fileName,
+                        (link ? link + '/' + fileName : null),
+                        'data/' + (link ? link + '/' + fileName : fileName)
+                    ];
+
+                    for (let path of possiblePaths) {
+                        if (path && fileMap.has(path)) {
+                            fileObject = fileMap.get(path);
+                            break;
+                        }
+                    }
+
+                    if (fileObject) {
+                        a.href = URL.createObjectURL(fileObject);
                     } else {
-                        a.href = file;
+                        // Fallback to the old logic if fileMap is empty (e.g. on refresh)
+                        const basePath = docBasePath.endsWith('/') ? docBasePath : docBasePath + '/';
+                        if(link) {
+                            a.href = basePath + link + '/' + fileName;
+                        } else {
+                            a.href = basePath + fileName;
+                        }
                     }
                     a.target = '_blank';
                     
                     const displayLabel = files.length > 1 ? `${label} (${idx+1})` : label;
-                    a.innerHTML = `${docIcon} <span title="${file}">${displayLabel}</span>`;
+                    a.innerHTML = `${docIcon} <span title="${fileName}">${displayLabel}</span>`;
                     docsContainer.appendChild(a);
                 });
             }
@@ -787,23 +862,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    const changeFolderBtn = document.getElementById("changeFolderBtn");
+
+    function resetApp() {
+        // Clear State
+        localStorage.removeItem('cachedApplicants');
+        localStorage.removeItem('cachedFilename');
+        applicantsData = [];
+        fileMap.clear();
+        excelFiles = [];
+        
+        // Reset Landing Page UI
+        if (folderUploadLabel) folderUploadLabel.textContent = "Select Survey Folder";
+        if (discoveryPlaceholder) discoveryPlaceholder.classList.remove('hidden');
+        discoveryPanel.classList.add('hidden');
+        uploadStatus.textContent = "";
+        folderUpload.value = ''; // Clear input
+
+        // Reset Main App UI
+        applicantList.innerHTML = '';
+        applicantDetails.classList.add('hidden');
+        welcomeMessage.classList.remove('hidden');
+        landingPage.classList.remove("hidden");
+        appContainer.classList.add("hidden");
+        updateTopBarTitle("");
+    }
+
+    if (changeFolderBtn) changeFolderBtn.addEventListener('click', resetApp);
+
     // --- Close Document Logic ---
     const clearDataBtn = document.getElementById("clearDataBtn");
     if (clearDataBtn) {
         clearDataBtn.addEventListener('click', () => {
-            localStorage.removeItem('cachedApplicants');
-            localStorage.removeItem('cachedFilename');
-            applicantsData = [];
-            applicantList.innerHTML = '';
-            applicantDetails.classList.add('hidden');
-            welcomeMessage.classList.remove('hidden');
-            
-            appContainer.classList.add("hidden");
-            landingPage.classList.remove("hidden");
-            excelUpload.value = '';
-            uploadStatus.textContent = '';
-            currentApplicantEmail = null;
-            
+            resetApp();
             // Reset filters
             if (evalFilterSelect) evalFilterSelect.value = 'all';
             if (markedFilterSelect) markedFilterSelect.value = 'all';

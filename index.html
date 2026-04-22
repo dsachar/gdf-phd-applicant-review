@@ -12,27 +12,61 @@
 <body>
     <!-- Landing Page for File Upload -->
     <div id="landingPage" class="landing-page">
-        <div class="landing-layout">
-            <!-- Upload Widget -->
-            <div class="upload-container glass card">
-                <img src="logo-GFD.png" alt="GreenFieldData Logo" class="landing-logo">
-                <h1>Select Applicant Data</h1>
-                <p class="subtitle">Select the <strong>.xlsx</strong> spreadsheet exported from EUSurvey to begin the review process.</p>
-                
-                <div class="file-input-wrapper">
-                    <input type="file" id="excelUpload" accept=".xlsx, .xls" class="file-input" />
-                    <label for="excelUpload" class="file-input-label">Select Excel File</label>
+        <div class="landing-content-wrapper">
+            <!-- Top Row: Panels -->
+            <div class="landing-panels-container">
+                <!-- Panel 1: Folder Selection -->
+                <div class="upload-container glass card landing-panel">
+                    <img src="logo-GFD.png" alt="GreenFieldData Logo" class="landing-logo">
+                    <h1>Select Applicant Data</h1>
+                    <p class="subtitle">Select the <strong>extracted folder</strong> from your EUSurvey ZIP export to begin.</p>
+                    
+                    <div class="file-input-wrapper" id="folderSelectionWrapper">
+                        <input type="file" id="folderUpload" webkitdirectory directory multiple class="file-input" />
+                        <label for="folderUpload" id="folderUploadLabel" class="file-input-label">Select Survey Folder</label>
+                    </div>
+                    <p id="uploadStatus" class="upload-status"></p>
+                    
+                    <div class="privacy-notice" style="margin-top: auto; padding-top: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <span>Data stays local.</span>
+                    </div>
                 </div>
-                <p id="uploadStatus" class="upload-status"></p>
 
-                <div class="privacy-notice">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                    <span>Your data never leaves your computer. All processing happens locally in your browser.</span>
+                <!-- Panel 2: Discovery Panel (Initially Hidden) -->
+                <div id="discoveryPanel" class="discovery-panel hidden card landing-panel" style="border: 1px solid var(--accent-color); background: rgba(59, 130, 246, 0.02);">
+                    <div class="panel-header" style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                        <h2 id="discoveredFolderName" style="margin: 0; border: none; font-size: 1.2rem;">Folder Name</h2>
+                    </div>
+                    
+                    <div id="excelSelectionArea" class="mt-2">
+                        <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; display: block;">Select Spreadsheet:</label>
+                        <select id="excelSelect" class="sort-select" style="width: 100%; margin-bottom: 15px;"></select>
+                    </div>
+
+                    <div style="background: white; padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-bottom: auto;">
+                        <p id="discoveryStats" style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;"></p>
+                        <p class="text-muted" style="font-size: 0.8rem; margin-top: 8px;">The dashboard will parse this spreadsheet and link to all discovered documents.</p>
+                    </div>
+
+                    <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 10px;">
+                        <button id="startEvaluationBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                            <span>Start Evaluation</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Panel 2 Placeholder (Visible when Panel 2 is hidden) -->
+                <div id="discoveryPlaceholder" class="card landing-panel discovery-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: rgba(255, 255, 255, 0.3); border-style: dashed; border-color: var(--border-color); color: var(--text-muted);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px; opacity: 0.3;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <p>Selection details will appear here<br>once a folder is picked.</p>
                 </div>
             </div>
 
-            <!-- EUSurvey Instructions -->
-            <div class="instructions-card glass card">
+            <!-- Bottom Row: Instructions -->
+            <div class="instructions-card glass card" style="width: 100%; margin-top: 30px;">
                 <div class="instructions-header">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                     <h2>How to export data from EUSurvey</h2>
@@ -61,7 +95,7 @@
                     </li>
                     <li>
                         <span class="step-num">6</span>
-                        <span><strong>Download &amp; Extract:</strong> Download the archive and extract it. Then select the <strong>.xlsx</strong> file using the button above to begin your review.</span>
+                        <span><strong>Download &amp; Extract:</strong> Download the archive and extract it. Then select the <strong>entire extracted folder</strong> using the button above to begin your review.</span>
                     </li>
                 </ul>
             </div>
