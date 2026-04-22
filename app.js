@@ -252,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 const activeItem = document.querySelector('.applicant-item.active .applicant-score');
                 if (activeItem) {
-                    activeItem.textContent = calculateScore(currentApplicantEmail).toFixed(0);
+                    activeItem.textContent = calculateScore(currentApplicantEmail).toFixed(1);
                     activeItem.classList.add('evaluated');
                 }
             });
@@ -277,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateScore(email) {
-        if(evalTotalScore) evalTotalScore.textContent = calculateScore(email).toFixed(0);
+        if(evalTotalScore) evalTotalScore.textContent = calculateScore(email).toFixed(1);
     }
 
     // --- Folder Upload & Discovery Logic ---
@@ -510,7 +510,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const country = getVal('Country where you currently live') || '';
             
             const email = getVal('Email');
-            const score = calculateScore(email).toFixed(0);
+            const score = calculateScore(email).toFixed(1);
             const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
             const statusClass = hasRatings ? 'evaluated' : '';
             const isMarked = !!markedCandidates[email];
