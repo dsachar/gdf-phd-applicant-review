@@ -451,6 +451,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 1. Filter by search term first (common to everything)
         const searchFiltered = applicantsData.filter(app => {
+            const email = getVal(app, 'Email');
+            if (currentApplicantEmail && email === currentApplicantEmail) return true;
             const firstName = (getVal(app, 'General Information First name') || '').toLowerCase();
             const lastName = (getVal(app, 'Last name') || '').toLowerCase();
             return firstName.includes(term) || lastName.includes(term);
@@ -490,6 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // 4. Final filtered list (Search + Eval + Marked)
         let filtered = searchFiltered.filter(app => {
             const email = getVal(app, 'Email');
+            if (currentApplicantEmail && email === currentApplicantEmail) return true;
             const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
             const isMarked = !!markedCandidates[email];
             
