@@ -714,7 +714,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (el) {
                 const val = getVal(key, altKeys);
                 if (val && val !== '/' && val.trim() !== '') {
-                    const query = encodeURIComponent(`site:timeshighereducation.com ${val}`);
+                    const query = encodeURIComponent(`timeshighereducation.com ${val}`);
                     const searchUrl = `https://www.google.com/search?q=${query}`;
                     el.innerHTML = `${val} <a href="${searchUrl}" target="_blank" class="ranking-link" title="Search THE Ranking on Google" style="margin-left: 6px; color: var(--accent-color); font-size: 0.85em; text-decoration: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
