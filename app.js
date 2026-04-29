@@ -1,3 +1,62 @@
+// --- IndexedDB helpers for persisting the directory handle ---
+const DB_NAME = 'phdReviewDB';
+const DB_STORE = 'handles';
+const DIR_HANDLE_KEY = 'surveyDirHandle';
+
+function openHandleDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function saveDirHandle(handle) {
+    const db = await openHandleDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).put(handle, DIR_HANDLE_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+async function loadDirHandle() {
+    const db = await openHandleDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const req = tx.objectStore(DB_STORE).get(DIR_HANDLE_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function clearDirHandle() {
+    const db = await openHandleDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).delete(DIR_HANDLE_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+}
+
+// Recursively iterate a directory handle and populate fileMap
+async function buildFileMapFromHandle(dirHandle, prefix) {
+    for await (const entry of dirHandle.values()) {
+        const path = prefix ? prefix + '/' + entry.name : entry.name;
+        if (entry.kind === 'file') {
+            const file = await entry.getFile();
+            fileMap.set(path, file);
+        } else if (entry.kind === 'directory') {
+            await buildFileMapFromHandle(entry, path);
+        }
+    }
+}
+
+let fileMap = new Map();
+
 document.addEventListener("DOMContentLoaded", () => {
     // UI Elements
     const landingPage = document.getElementById("landingPage");
@@ -20,8 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let applicantsData = [];
     let originalFilename = 'applicants';
-    let fileMap = new Map();
     let excelFiles = [];
+    let storedDirHandle = null; // Persisted directory handle (File System Access API)
 
     function updateTopBarTitle(name) {
         const titleEl = document.getElementById('topBarTitle');
@@ -295,28 +354,24 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- Folder Upload & Discovery Logic ---
-    folderUpload.addEventListener("change", (e) => {
-        const files = Array.from(e.target.files);
-        if (files.length === 0) return;
 
-        fileMap.clear();
+    // Common function to process discovered files and show the discovery panel
+    function showDiscovery(rootName) {
+        discoveredFolderName.textContent = rootName;
+
+        // Separate excel files from the rest by inspecting fileMap
         excelFiles = [];
-        
-        // Find the root folder name from the first file's webkitRelativePath
-        const firstPath = files[0].webkitRelativePath;
-        const rootFolder = firstPath.split('/')[0];
-        discoveredFolderName.textContent = rootFolder;
-
-        files.forEach(file => {
-            const relPath = file.webkitRelativePath.replace(rootFolder + '/', '');
-            const lowerPath = relPath.toLowerCase();
-            
-            if (lowerPath.endsWith('.xlsx') || lowerPath.endsWith('.xls')) {
+        const docEntries = new Map();
+        for (const [relPath, file] of fileMap) {
+            const lower = relPath.toLowerCase();
+            if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) {
                 excelFiles.push(file);
             } else {
-                fileMap.set(relPath, file);
+                docEntries.set(relPath, file);
             }
-        });
+        }
+        // Keep only non-excel entries in fileMap
+        fileMap = docEntries;
 
         if (excelFiles.length === 0) {
             uploadStatus.textContent = "Error: No Excel files (.xlsx or .xls) found in this folder.";
@@ -345,6 +400,54 @@ document.addEventListener("DOMContentLoaded", () => {
         if (discoveryPlaceholder) discoveryPlaceholder.classList.add('hidden');
         if (folderUploadLabel) folderUploadLabel.textContent = "Select Different Survey Folder";
         uploadStatus.textContent = "";
+    }
+
+    // Try the modern File System Access API for folder selection
+    async function selectFolderViaFSAPI() {
+        try {
+            const dirHandle = await window.showDirectoryPicker({ mode: 'read' });
+            storedDirHandle = dirHandle;
+            fileMap.clear();
+            excelFiles = [];
+            await buildFileMapFromHandle(dirHandle, '');
+            await saveDirHandle(dirHandle);
+            showDiscovery(dirHandle.name);
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('showDirectoryPicker failed:', err);
+            }
+        }
+    }
+
+    // Wire up the folder selection button
+    if (window.showDirectoryPicker) {
+        // Modern API available – intercept clicks on the label to use it
+        folderUploadLabel.addEventListener('click', (e) => {
+            e.preventDefault();
+            selectFolderViaFSAPI();
+        });
+    }
+
+    // Fallback: traditional <input webkitdirectory> (also fires on non-FSAPI browsers)
+    folderUpload.addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        fileMap.clear();
+        excelFiles = [];
+        storedDirHandle = null;
+        clearDirHandle(); // clear any stored handle since we're using input fallback
+        
+        // Find the root folder name from the first file's webkitRelativePath
+        const firstPath = files[0].webkitRelativePath;
+        const rootFolder = firstPath.split('/')[0];
+
+        files.forEach(file => {
+            const relPath = file.webkitRelativePath.replace(rootFolder + '/', '');
+            fileMap.set(relPath, file);
+        });
+
+        showDiscovery(rootFolder);
     });
 
     startEvaluationBtn.addEventListener('click', () => {
@@ -937,6 +1040,8 @@ document.addEventListener("DOMContentLoaded", () => {
         applicantsData = [];
         fileMap.clear();
         excelFiles = [];
+        storedDirHandle = null;
+        clearDirHandle();
         
         // Reset Landing Page UI
         if (folderUploadLabel) folderUploadLabel.textContent = "Select Survey Folder";
@@ -944,6 +1049,10 @@ document.addEventListener("DOMContentLoaded", () => {
         discoveryPanel.classList.add('hidden');
         uploadStatus.textContent = "";
         folderUpload.value = ''; // Clear input
+
+        // Hide reconnect banner if present
+        const banner = document.getElementById('reconnectBanner');
+        if (banner) banner.remove();
 
         // Reset Main App UI
         applicantList.innerHTML = '';
@@ -967,7 +1076,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- Auto-load cached file ---
+    // --- Auto-load cached file & restore folder access ---
     const cachedFile = localStorage.getItem('cachedApplicants');
     if (cachedFile) {
         try {
@@ -978,8 +1087,115 @@ document.addEventListener("DOMContentLoaded", () => {
             landingPage.classList.add("hidden");
             appContainer.classList.remove("hidden");
             updateApplicantList();
+
+            // Try to restore the directory handle from IndexedDB
+            restoreFolderAccess();
         } catch (e) {
             console.error("Error loading cached file data:", e);
+        }
+    }
+
+    async function restoreFolderAccess() {
+        try {
+            const handle = await loadDirHandle();
+            if (!handle) {
+                showReconnectBanner('Document links are unavailable — no saved folder access.', true);
+                return;
+            }
+
+            // Verify/request permission
+            let perm = await handle.queryPermission({ mode: 'read' });
+            if (perm === 'granted') {
+                // Permission already granted – rebuild fileMap silently
+                storedDirHandle = handle;
+                fileMap.clear();
+                await buildFileMapFromHandle(handle, '');
+                console.log(`Restored folder access: ${fileMap.size} files mapped.`);
+                return;
+            }
+
+            // Permission not yet granted – show banner so user can click to grant
+            showReconnectBanner(
+                `Document links need folder access to "${handle.name}".`,
+                false,
+                async () => {
+                    perm = await handle.requestPermission({ mode: 'read' });
+                    if (perm === 'granted') {
+                        storedDirHandle = handle;
+                        fileMap.clear();
+                        await buildFileMapFromHandle(handle, '');
+                        console.log(`Restored folder access: ${fileMap.size} files mapped.`);
+                        const banner = document.getElementById('reconnectBanner');
+                        if (banner) banner.remove();
+                    }
+                }
+            );
+        } catch (err) {
+            console.warn('Could not restore folder access:', err);
+            showReconnectBanner('Document links are unavailable — folder access could not be restored.', true);
+        }
+    }
+
+    function showReconnectBanner(message, showSelectBtn, grantAction) {
+        // Remove existing banner if any
+        const existing = document.getElementById('reconnectBanner');
+        if (existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'reconnectBanner';
+        banner.className = 'reconnect-banner';
+
+        const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+        
+        let buttonsHTML = '';
+        if (grantAction) {
+            buttonsHTML += `<button id="grantAccessBtn" class="banner-btn banner-btn-primary">Grant Access</button>`;
+        }
+        if (showSelectBtn) {
+            buttonsHTML += `<button id="bannerSelectFolder" class="banner-btn banner-btn-secondary">Select Folder</button>`;
+        }
+        buttonsHTML += `<button id="dismissBanner" class="banner-btn banner-btn-dismiss" title="Dismiss">✕</button>`;
+
+        banner.innerHTML = `${icon}<span>${message}</span><div class="banner-actions">${buttonsHTML}</div>`;
+
+        // Insert banner right after the top bar
+        const topBar = document.querySelector('.top-bar');
+        if (topBar && topBar.nextSibling) {
+            topBar.parentNode.insertBefore(banner, topBar.nextSibling);
+        } else {
+            appContainer.prepend(banner);
+        }
+
+        // Wire up buttons
+        const grantBtn = document.getElementById('grantAccessBtn');
+        if (grantBtn && grantAction) {
+            grantBtn.addEventListener('click', grantAction);
+        }
+
+        const selectBtn = document.getElementById('bannerSelectFolder');
+        if (selectBtn) {
+            selectBtn.addEventListener('click', () => {
+                if (window.showDirectoryPicker) {
+                    (async () => {
+                        await selectFolderViaFSAPI();
+                        if (fileMap.size > 0) {
+                            banner.remove();
+                        }
+                    })();
+                } else {
+                    // Trigger the file input
+                    folderUpload.click();
+                    folderUpload.addEventListener('change', function handler() {
+                        if (fileMap.size > 0) banner.remove();
+                        folderUpload.removeEventListener('change', handler);
+                    });
+                }
+            });
+        }
+
+        const dismissBtn = document.getElementById('dismissBanner');
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', () => banner.remove());
         }
     }
 });

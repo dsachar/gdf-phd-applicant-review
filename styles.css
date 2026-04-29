@@ -1113,3 +1113,75 @@ body {
 .applicant-item.marked-item {
     border-left: 3px solid #f59e0b;
 }
+
+/* Reconnect Banner (folder access restoration) */
+.reconnect-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #fefce8, #fef9c3);
+    border-bottom: 1px solid #fde68a;
+    font-size: 0.85rem;
+    color: #92400e;
+    flex-shrink: 0;
+    animation: bannerSlideDown 0.3s ease-out;
+}
+
+@keyframes bannerSlideDown {
+    from { opacity: 0; transform: translateY(-100%); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.reconnect-banner span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.banner-btn {
+    padding: 5px 14px;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+    border: none;
+    white-space: nowrap;
+}
+
+.banner-btn-primary {
+    background: #f59e0b;
+    color: white;
+}
+.banner-btn-primary:hover {
+    background: #d97706;
+}
+
+.banner-btn-secondary {
+    background: white;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.banner-btn-secondary:hover {
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+.banner-btn-dismiss {
+    background: transparent;
+    color: #92400e;
+    font-size: 1rem;
+    padding: 4px 8px;
+    opacity: 0.6;
+}
+.banner-btn-dismiss:hover {
+    opacity: 1;
+}
