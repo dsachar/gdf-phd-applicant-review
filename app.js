@@ -854,12 +854,14 @@ document.addEventListener("DOMContentLoaded", () => {
         setLink('linkOrcid', 'ORCID (if available)');
 
         // Helper for University Ranking Search Link
-        const setUniversityWithRankingLink = (id, key, altKeys = []) => {
+        const setUniversityWithRankingLink = (id, key, altKeys = [], countryKey = null, countryAltKeys = []) => {
             const el = document.getElementById(id);
             if (el) {
                 const val = getVal(key, altKeys);
                 if (val && val !== '/' && val.trim() !== '') {
-                    const query = encodeURIComponent(`ranking timeshighereducation.com ${val}`);
+                    const country = countryKey ? (getVal(countryKey, countryAltKeys) || '') : '';
+                    const countryPart = (country && country !== '/' && country.trim()) ? ` in ${country.trim()}` : '';
+                    const query = encodeURIComponent(`ranking${countryPart} ${val}`);
                     const searchUrl = `https://www.google.com/search?q=${query}`;
                     el.innerHTML = `${val} <a href="${searchUrl}" target="_blank" class="ranking-link" title="Search THE Ranking on Google" style="margin-left: 6px; color: var(--accent-color); font-size: 0.85em; text-decoration: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -873,14 +875,14 @@ document.addEventListener("DOMContentLoaded", () => {
         // Education - BSc
         setText('detailBscCountry', 'Education: Bachelor Country');
         setText('detailBscYear', 'Year of graduation');
-        setUniversityWithRankingLink('detailBscUni', 'University (full name)');
+        setUniversityWithRankingLink('detailBscUni', 'University (full name)', [], 'Education: Bachelor Country');
         setText('detailBscProgram', 'Study Program name');
         setText('detailBscGrade', 'Final Grade (in the format your_grade / maximum_grade)');
 
         // Education - MSc
         setText('detailMscCountry', 'Education: Master Country');
         setText('detailMscYear', 'Year');
-        setUniversityWithRankingLink('detailMscUni', 'University (full name)_2', ['University (full name)2']);
+        setUniversityWithRankingLink('detailMscUni', 'University (full name)_2', ['University (full name)2'], 'Education: Master Country');
         setText('detailMscProgram', 'Study Program name_2', ['Study Program name3']);
         setText('detailMscGrade', 'Final Grade (in the format your_grade / maximum_grade)_2', ['Final Grade (in the format your_grade / maximum_grade)4']);
 
