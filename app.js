@@ -421,7 +421,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Wire up the folder selection button
     if (window.showDirectoryPicker) {
-        // Modern API available – intercept clicks on the label to use it
+        // Modern API available – hide the native input and use the label as a button
+        folderUpload.style.display = 'none';
+        folderUploadLabel.removeAttribute('for');
         folderUploadLabel.addEventListener('click', (e) => {
             e.preventDefault();
             selectFolderViaFSAPI();
