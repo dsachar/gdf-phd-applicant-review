@@ -731,12 +731,37 @@ document.addEventListener("DOMContentLoaded", () => {
             if(el) el.textContent = value && value !== '/' ? value : fallback;
         };
 
+        // Normalize a URL: ensure it has a protocol so it doesn't resolve to localhost.
+        // Also converts bare ORCID identifiers to full ORCID URLs.
+        const normalizeUrl = (raw) => {
+            if (!raw) return raw;
+            let url = raw.trim();
+            // Bare ORCID identifier (e.g. "0000-0002-1234-5678")
+            if (/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i.test(url)) {
+                return `https://orcid.org/${url}`;
+            }
+            // Already has a protocol
+            if (/^https?:\/\//i.test(url) || /^mailto:/i.test(url)) {
+                return url;
+            }
+            // Starts with www or a known domain — prepend https://
+            if (/^(www\.|linkedin\.com|orcid\.org)/i.test(url)) {
+                return `https://${url}`;
+            }
+            // Looks like a domain path (contains a dot before any slash) — prepend https://
+            if (/^[^\/]+\.[a-z]{2,}/i.test(url)) {
+                return `https://${url}`;
+            }
+            // Fallback: return as-is (could be an unusual value)
+            return url;
+        };
+
         const setLink = (id, key) => {
-            const url = getLinkOrVal(key);
+            const raw = getLinkOrVal(key);
             const el = document.getElementById(id);
             if(el) {
-                if(url && url !== '/' && url.trim() !== '') {
-                    el.href = url;
+                if(raw && raw !== '/' && raw.trim() !== '') {
+                    el.href = normalizeUrl(raw);
                     el.classList.remove('hidden');
                 } else {
                     el.classList.add('hidden');
@@ -868,7 +893,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const thesisUrlContainer = document.getElementById('detailThesisUrlContainer');
         if (thesisUrlContainer) {
             if (thesisUrl && thesisUrl !== '/' && thesisUrl.trim() !== '') {
-                document.getElementById('detailThesisUrl').href = thesisUrl;
+                document.getElementById('detailThesisUrl').href = normalizeUrl(thesisUrl);
                 thesisUrlContainer.classList.remove('hidden');
             } else {
                 thesisUrlContainer.classList.add('hidden');
@@ -1025,8 +1050,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const extDocsContainer = document.getElementById('detailExternalDocsContainer');
         const extDocsLink = document.getElementById('detailExternalDocs');
         
-        if(extLink && extLink !== '/' && extLink.trim() !== '' && extLink.startsWith('http')) {
-            extDocsLink.href = extLink;
+        if(extLink && extLink !== '/' && extLink.trim() !== '') {
+            extDocsLink.href = normalizeUrl(extLink);
             extDocsContainer.classList.remove('hidden');
         } else {
             extDocsContainer.classList.add('hidden');
