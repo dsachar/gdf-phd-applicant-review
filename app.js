@@ -94,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let markedCandidates = JSON.parse(localStorage.getItem('markedCandidates')) || {};
     let reviewerNotes = JSON.parse(localStorage.getItem('reviewerNotes')) || {};
     let docBasePath = localStorage.getItem('docBasePath') || 'data/';
+    let secondaryReviewers = JSON.parse(localStorage.getItem('secondaryReviewers')) || {};
 
     // Settings Modal & Evaluation UI
     const settingsBtn = document.getElementById("settingsBtn");
@@ -241,9 +242,44 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- Load State (JSON) ---
+    // --- Load State (JSON) with Multiple Reviewers Support ---
     const loadStateBtn = document.getElementById("loadStateBtn");
     const loadStateInput = document.getElementById("loadStateInput");
+    
+    // Modal elements
+    const importModal = document.getElementById("importModal");
+    const closeImportModal = document.getElementById("closeImportModal");
+    const confirmImportBtn = document.getElementById("confirmImportBtn");
+    const importReviewerName = document.getElementById("importReviewerName");
+    const importModeRadios = document.getElementsByName("importMode");
+    
+    let pendingImportState = null;
+
+    if (importModeRadios) {
+        importModeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (importReviewerName) {
+                    importReviewerName.disabled = e.target.value !== 'add';
+                    if (e.target.value === 'add') importReviewerName.focus();
+                }
+            });
+        });
+    }
+
+    const closeImport = () => {
+        if (importModal) importModal.classList.add('hidden');
+        pendingImportState = null;
+        if (loadStateInput) loadStateInput.value = '';
+        if (importReviewerName) importReviewerName.value = '';
+    };
+
+    if (closeImportModal) closeImportModal.addEventListener('click', closeImport);
+
+    // Simple hash function for deduplication
+    function hashRatings(r) {
+        return JSON.stringify(r || {});
+    }
+
     if (loadStateBtn && loadStateInput) {
         loadStateBtn.addEventListener('click', () => loadStateInput.click());
         loadStateInput.addEventListener('change', (e) => {
@@ -254,35 +290,105 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     const state = JSON.parse(event.target.result);
                     
-                    if (state.ratings) {
-                        ratings = state.ratings;
-                        localStorage.setItem('evalRatings', JSON.stringify(ratings));
-                    }
-                    if (state.reviewerNotes) {
-                        reviewerNotes = state.reviewerNotes;
-                        localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
-                    }
-                    if (state.markedCandidates) {
-                        markedCandidates = state.markedCandidates;
-                        localStorage.setItem('markedCandidates', JSON.stringify(markedCandidates));
-                    }
-                    if (state.weights) {
-                        weights = state.weights;
-                        localStorage.setItem('evalWeights', JSON.stringify(weights));
-                        Object.keys(weights).forEach(k => {
-                            const el = document.getElementById('w_' + k);
-                            if(el) el.value = weights[k];
-                        });
-                    }
-                    if (state.docBasePath) {
-                        docBasePath = state.docBasePath;
-                        localStorage.setItem('docBasePath', docBasePath);
+                    // Check for duplicates
+                    const importedHash = hashRatings(state.ratings);
+                    const currentHash = hashRatings(ratings);
+                    
+                    if (importedHash === currentHash) {
+                        alert("This file appears to be identical to your current state. Import cancelled.");
+                        loadStateInput.value = '';
+                        return;
                     }
                     
-                    const count = Object.keys(state.ratings || {}).length;
-                    alert(`Successfully loaded review state (${count} rated applicants).`);
+                    let duplicateReviewer = null;
+                    for (const [name, rev] of Object.entries(secondaryReviewers)) {
+                        if (hashRatings(rev.ratings) === importedHash) {
+                            duplicateReviewer = name;
+                            break;
+                        }
+                    }
                     
-                    if (currentApplicantEmail) {
+                    if (duplicateReviewer) {
+                        alert(`This file appears to be identical to the imported state for "${duplicateReviewer}". Import cancelled.`);
+                        loadStateInput.value = '';
+                        return;
+                    }
+
+                    // If we reach here, it's a new state. Show the modal.
+                    pendingImportState = state;
+                    if (importModal) importModal.classList.remove('hidden');
+
+                } catch (error) {
+                    console.error("Error parsing JSON:", error);
+                    alert("Invalid review state file.");
+                    loadStateInput.value = '';
+                }
+            };
+            reader.readAsText(file);
+        });
+    }
+
+    if (confirmImportBtn) {
+        confirmImportBtn.addEventListener('click', () => {
+            if (!pendingImportState) return;
+            
+            const mode = Array.from(importModeRadios).find(r => r.checked)?.value;
+            const state = pendingImportState;
+
+            if (mode === 'override') {
+                if (state.ratings) {
+                    ratings = state.ratings;
+                    localStorage.setItem('evalRatings', JSON.stringify(ratings));
+                }
+                if (state.reviewerNotes) {
+                    reviewerNotes = state.reviewerNotes;
+                    localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
+                }
+                if (state.markedCandidates) {
+                    markedCandidates = state.markedCandidates;
+                    localStorage.setItem('markedCandidates', JSON.stringify(markedCandidates));
+                }
+                if (state.weights) {
+                    weights = state.weights;
+                    localStorage.setItem('evalWeights', JSON.stringify(weights));
+                    Object.keys(weights).forEach(k => {
+                        const el = document.getElementById('w_' + k);
+                        if(el) el.value = weights[k];
+                    });
+                }
+                if (state.docBasePath) {
+                    docBasePath = state.docBasePath;
+                    localStorage.setItem('docBasePath', docBasePath);
+                }
+                
+                const count = Object.keys(state.ratings || {}).length;
+                alert(`Successfully overridden review state (${count} rated applicants).`);
+                
+            } else if (mode === 'add') {
+                let name = importReviewerName.value.trim();
+                if (!name) {
+                    // Generate a default name
+                    const count = Object.keys(secondaryReviewers).length + 2;
+                    name = `Reviewer ${count}`;
+                }
+                
+                if (secondaryReviewers[name]) {
+                    alert(`A reviewer named "${name}" already exists. Please choose a different name.`);
+                    return; // keep modal open
+                }
+
+                secondaryReviewers[name] = {
+                    ratings: state.ratings || {},
+                    notes: state.reviewerNotes || {}
+                };
+                localStorage.setItem('secondaryReviewers', JSON.stringify(secondaryReviewers));
+                
+                alert(`Successfully added "${name}" as a secondary reviewer.`);
+            }
+
+            closeImport();
+
+            if (currentApplicantEmail) {
                         const userRatings = ratings[currentApplicantEmail] || {};
                         Object.keys(evalInputs).forEach(k => {
                             if(evalInputs[k]) {
@@ -807,6 +913,74 @@ document.addEventListener("DOMContentLoaded", () => {
                 reviewerNotes[currentApplicantEmail] = newNotesEl.value;
                 localStorage.setItem('reviewerNotes', JSON.stringify(reviewerNotes));
             });
+        }
+        
+        // Render Secondary Reviewer Panels
+        const evalContainer = document.getElementById('evaluationsContainer');
+        if (evalContainer) {
+            // Keep the first child (primary evaluation) and remove the rest
+            while (evalContainer.children.length > 1) {
+                evalContainer.removeChild(evalContainer.lastChild);
+            }
+            
+            // Loop through secondary reviewers
+            for (const [reviewerName, reviewerData] of Object.entries(secondaryReviewers)) {
+                const revRatings = reviewerData.ratings[currentApplicantEmail] || {};
+                const revNotes = reviewerData.notes[currentApplicantEmail] || '';
+                
+                // Calculate their score
+                let revScore = 0;
+                let totalWeight = 0;
+                Object.keys(weights).forEach(k => {
+                    totalWeight += weights[k];
+                    revScore += (revRatings[k] || 0) * weights[k];
+                });
+                revScore = totalWeight > 0 ? (revScore / totalWeight) : 0;
+                
+                // Create panel clone
+                const panelHtml = `
+                    <section class="card evaluation-panel secondary-reviewer-panel" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+                        <div class="eval-header">
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                <h2>${reviewerName}</h2>
+                                <button class="btn-secondary remove-reviewer-btn" data-name="${reviewerName}" style="padding: 2px 6px; font-size: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: transparent; cursor: pointer; color: var(--text-muted);" title="Remove Reviewer">&times;</button>
+                            </div>
+                            <div class="total-score">Score: <strong>${revScore.toFixed(2)}</strong> / 10</div>
+                        </div>
+                        <div class="eval-grid">
+                            <div class="eval-input"><label>BSc Grade</label><input type="text" value="${revRatings.bsc !== undefined ? revRatings.bsc : '-'}" disabled></div>
+                            <div class="eval-input"><label>MSc Grade</label><input type="text" value="${revRatings.msc !== undefined ? revRatings.msc : '-'}" disabled></div>
+                            <div class="eval-input"><label>Research Exp.</label><input type="text" value="${revRatings.research !== undefined ? revRatings.research : '-'}" disabled></div>
+                            <div class="eval-input"><label>Prof. Exp.</label><input type="text" value="${revRatings.prof !== undefined ? revRatings.prof : '-'}" disabled></div>
+                            <div class="eval-input"><label>English Skills</label><input type="text" value="${revRatings.english !== undefined ? revRatings.english : '-'}" disabled></div>
+                            <div class="eval-input"><label>CV & Cover Letter</label><input type="text" value="${revRatings.cv !== undefined ? revRatings.cv : '-'}" disabled></div>
+                        </div>
+                        <div class="reviewer-notes-container mt-4">
+                            <label class="reviewer-notes-label">Notes</label>
+                            <textarea class="reviewer-notes" disabled>${revNotes}</textarea>
+                        </div>
+                    </section>
+                `;
+                
+                const template = document.createElement('template');
+                template.innerHTML = panelHtml.trim();
+                const panelEl = template.content.firstChild;
+                
+                // Add event listener to remove button
+                const removeBtn = panelEl.querySelector('.remove-reviewer-btn');
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Are you sure you want to remove reviewer "${reviewerName}"?`)) {
+                            delete secondaryReviewers[reviewerName];
+                            localStorage.setItem('secondaryReviewers', JSON.stringify(secondaryReviewers));
+                            showApplicantDetails(applicant); // re-render
+                        }
+                    });
+                }
+                
+                evalContainer.appendChild(panelEl);
+            }
         }
         
         // Update mark toggle button

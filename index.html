@@ -128,6 +128,37 @@
         </div>
     </div>
 
+    <!-- Import Review State Modal -->
+    <div id="importModal" class="modal hidden">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h2>Import Review State</h2>
+                <button id="closeImportModal" class="close-btn">&times;</button>
+            </div>
+            <p class="text-muted" style="margin-bottom: 15px; font-size: 0.9rem;">How would you like to handle the imported review state?</p>
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                    <input type="radio" name="importMode" value="override" checked style="margin-top: 4px;">
+                    <div>
+                        <strong style="display: block; color: var(--text-main);">Override Current State</strong>
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Replace your current evaluations with the imported ones.</span>
+                    </div>
+                </label>
+                <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                    <input type="radio" name="importMode" value="add" style="margin-top: 4px;">
+                    <div style="flex: 1;">
+                        <strong style="display: block; color: var(--text-main);">Add as Secondary Reviewer</strong>
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">View the imported evaluations side-by-side with your own.</span>
+                        <input type="text" id="importReviewerName" placeholder="Reviewer Name (e.g. Alice)" style="margin-top: 8px; width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit;" disabled>
+                    </div>
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmImportBtn" class="btn-primary">Import</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Application UI (Hidden Initially) -->
     <div id="appContainer" class="app-container hidden">
         <!-- Top Bar -->
@@ -233,43 +264,46 @@
                     </div>
                 </section>
 
-                <!-- Evaluation Panel -->
-                <section class="card evaluation-panel">
-                    <div class="eval-header">
-                        <h2>Rating & Evaluation</h2>
-                        <div class="total-score">Score: <strong id="evalTotalScore">0.00</strong> / 10</div>
-                    </div>
-                    <div class="eval-grid">
-                        <div class="eval-input">
-                            <label>BSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
-                            <input type="number" id="eval_bsc" min="0" max="10" step="1" placeholder="0">
+                <!-- Evaluation Panels Container -->
+                <div id="evaluationsContainer" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px;">
+                    <!-- Primary Evaluation Panel -->
+                    <section class="card evaluation-panel" style="flex: 1; min-width: 300px; margin-bottom: 0;">
+                        <div class="eval-header">
+                            <h2>Your Evaluation</h2>
+                            <div class="total-score">Score: <strong id="evalTotalScore">0.00</strong> / 10</div>
                         </div>
-                        <div class="eval-input">
-                            <label>MSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
-                            <input type="number" id="eval_msc" min="0" max="10" step="1" placeholder="0">
+                        <div class="eval-grid">
+                            <div class="eval-input">
+                                <label>BSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
+                                <input type="number" id="eval_bsc" min="0" max="10" step="1" placeholder="0">
+                            </div>
+                            <div class="eval-input">
+                                <label>MSc Grade (0-10) <span class="help-icon" data-tooltip="Points between 0 and 10">?</span></label>
+                                <input type="number" id="eval_msc" min="0" max="10" step="1" placeholder="0">
+                            </div>
+                            <div class="eval-input">
+                                <label>Research Exp. (0-10) <span class="help-icon" data-tooltip="Cumulative points (Max 10). Journals: Q4=1, Q3=2, Q2=3, Q1=4. Conf: C=1, B=2, A=3, A*=4. Patent=5">?</span></label>
+                                <input type="number" id="eval_research" min="0" max="10" step="1" placeholder="0">
+                            </div>
+                            <div class="eval-input">
+                                <label>Prof. Exp. (0-10) <span class="help-icon" data-tooltip="2 points per year of experience (Max 10)">?</span></label>
+                                <input type="number" id="eval_prof" min="0" max="10" step="1" placeholder="0">
+                            </div>
+                            <div class="eval-input">
+                                <label>English Skills (0-10) <span class="help-icon" data-tooltip="A1=2, A2=4, B1=6, B2=8, C1=10">?</span></label>
+                                <input type="number" id="eval_english" min="0" max="10" step="1" placeholder="0">
+                            </div>
+                            <div class="eval-input">
+                                <label>CV & Cover Letter (0-10) <span class="help-icon" data-tooltip="Manual score based on relevance to PhD topic">?</span></label>
+                                <input type="number" id="eval_cv" min="0" max="10" step="1" placeholder="0">
+                            </div>
                         </div>
-                        <div class="eval-input">
-                            <label>Research Exp. (0-10) <span class="help-icon" data-tooltip="Cumulative points (Max 10). Journals: Q4=1, Q3=2, Q2=3, Q1=4. Conf: C=1, B=2, A=3, A*=4. Patent=5">?</span></label>
-                            <input type="number" id="eval_research" min="0" max="10" step="1" placeholder="0">
+                        <div class="reviewer-notes-container mt-4">
+                            <label for="reviewerNotes" class="reviewer-notes-label">Reviewer Notes</label>
+                            <textarea id="reviewerNotes" class="reviewer-notes" placeholder="Add your notes about this applicant…" rows="4"></textarea>
                         </div>
-                        <div class="eval-input">
-                            <label>Prof. Exp. (0-10) <span class="help-icon" data-tooltip="2 points per year of experience (Max 10)">?</span></label>
-                            <input type="number" id="eval_prof" min="0" max="10" step="1" placeholder="0">
-                        </div>
-                        <div class="eval-input">
-                            <label>English Skills (0-10) <span class="help-icon" data-tooltip="A1=2, A2=4, B1=6, B2=8, C1=10">?</span></label>
-                            <input type="number" id="eval_english" min="0" max="10" step="1" placeholder="0">
-                        </div>
-                        <div class="eval-input">
-                            <label>CV & Cover Letter (0-10) <span class="help-icon" data-tooltip="Manual score based on relevance to PhD topic">?</span></label>
-                            <input type="number" id="eval_cv" min="0" max="10" step="1" placeholder="0">
-                        </div>
-                    </div>
-                    <div class="reviewer-notes-container mt-4">
-                        <label for="reviewerNotes" class="reviewer-notes-label">Reviewer Notes</label>
-                        <textarea id="reviewerNotes" class="reviewer-notes" placeholder="Add your notes about this applicant…" rows="4"></textarea>
-                    </div>
-                </section>
+                    </section>
+                </div>
 
                 <div class="grid-layout">
                     <!-- Education Section -->

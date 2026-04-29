@@ -1185,3 +1185,32 @@ body {
 .banner-btn-dismiss:hover {
     opacity: 1;
 }
+
+/* Secondary Reviewer Panel */
+.secondary-reviewer-panel {
+    background: #f1f5f9;
+    border: 1px dashed var(--border-color);
+    opacity: 0.95;
+}
+.secondary-reviewer-panel h2 {
+    color: var(--text-muted);
+}
+.secondary-reviewer-panel .eval-input input, 
+.secondary-reviewer-panel .reviewer-notes {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-main);
+    font-weight: 500;
+    pointer-events: none;
+    resize: none;
+    box-shadow: none;
+    padding-left: 0;
+}
+.secondary-reviewer-panel .eval-input input::placeholder, 
+.secondary-reviewer-panel .reviewer-notes::placeholder {
+    color: transparent;
+}
+.secondary-reviewer-panel .eval-input {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 4px;
+}
