@@ -469,12 +469,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (state.consensusRatings) {
                     consensusRatings = state.consensusRatings;
-                    localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+                } else {
+                    consensusRatings = {}; 
                 }
+                localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+
                 if (state.consensusNotes) {
                     consensusNotes = state.consensusNotes;
-                    localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
+                } else {
+                    consensusNotes = {};
                 }
+                localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
                 
                 const count = Object.keys(state.ratings || {}).length;
                 alert(`Successfully overridden review state (${count} rated applicants).`);
@@ -538,22 +543,23 @@ document.addEventListener("DOMContentLoaded", () => {
             // Add primary reviewer
             if (ratings[email]) {
                 Object.keys(sums).forEach(k => {
-                    if (ratings[email][k] !== undefined) {
-                        sums[k] += ratings[email][k];
+                    if (ratings[email][k] !== undefined && ratings[email][k] !== null && ratings[email][k] !== '') {
+                        sums[k] += parseFloat(ratings[email][k]);
                         counts[k]++;
                     }
                 });
             }
             if (reviewerNotes[email] && reviewerNotes[email].trim()) {
-                combinedNotes.push(`${primaryReviewerName}:\n${reviewerNotes[email].trim()}`);
+                combinedNotes.push(`${primaryReviewerName || 'Primary'}:\n${reviewerNotes[email].trim()}`);
             }
             
             // Add secondary reviewers
             for (const [reviewerName, reviewerData] of Object.entries(secondaryReviewers)) {
                 if (reviewerData.ratings && reviewerData.ratings[email]) {
                     Object.keys(sums).forEach(k => {
-                        if (reviewerData.ratings[email][k] !== undefined) {
-                            sums[k] += reviewerData.ratings[email][k];
+                        const val = reviewerData.ratings[email][k];
+                        if (val !== undefined && val !== null && val !== '') {
+                            sums[k] += parseFloat(val);
                             counts[k]++;
                         }
                     });
@@ -563,15 +569,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
             
-            // Calculate average
-            if (!consensusRatings[email]) consensusRatings[email] = {};
+            // Calculate average for ratings
+            let newRatings = {};
+            let hasAnyData = false;
             Object.keys(sums).forEach(k => {
                 if (counts[k] > 0) {
-                    consensusRatings[email][k] = parseFloat((sums[k] / counts[k]).toFixed(1));
+                    newRatings[k] = parseFloat((sums[k] / counts[k]).toFixed(1));
+                    hasAnyData = true;
                 }
             });
             
-            if (!consensusNotes[email]) {
+            if (hasAnyData) {
+                consensusRatings[email] = newRatings;
+            } else {
+                delete consensusRatings[email];
+            }
+            
+            // Rebuild notes (only if they haven't been manually edited? 
+            // Actually, usually users want a fresh combination. 
+            // Let's only update if the consensus note is empty or we are forced to.
+            // For "populating for all", we ensure there's a starting point.)
+            if (!consensusNotes[email] || consensusNotes[email].trim() === '') {
                 consensusNotes[email] = combinedNotes.join('\n\n');
             }
         });
