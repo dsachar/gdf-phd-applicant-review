@@ -173,15 +173,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const exportGradesBtn = document.getElementById("exportGradesBtn");
     if (exportGradesBtn) {
         exportGradesBtn.addEventListener('click', () => {
-            if (Object.keys(ratings).length === 0) {
-                alert("No grades to export yet.");
+            let useConsensus = false;
+            if (Object.keys(secondaryReviewers).length > 0) {
+                useConsensus = confirm("You have multiple reviewers loaded. Would you like to export the Consensus Evaluation instead of your personal evaluation?\n\nClick 'OK' to export Consensus Grades.\nClick 'Cancel' to export Personal Grades.");
+            }
+            
+            const targetRatings = useConsensus ? consensusRatings : ratings;
+            const targetNotes = useConsensus ? consensusNotes : reviewerNotes;
+
+            if (Object.keys(targetRatings).length === 0 && Object.keys(targetNotes).length === 0) {
+                alert(`No ${useConsensus ? 'consensus ' : ''}grades to export yet.`);
                 return;
             }
             // Collect all emails that have either ratings or notes
-            const allEmails = new Set([...Object.keys(ratings), ...Object.keys(reviewerNotes)]);
+            const allEmails = new Set([...Object.keys(targetRatings), ...Object.keys(targetNotes)]);
             const exportData = [];
             allEmails.forEach(email => {
-                const r = ratings[email] || {};
+                const r = targetRatings[email] || {};
                 // Look up applicant record to get name fields
                 const applicant = applicantsData.find(a => {
                     const e = a['Email'];
@@ -192,6 +200,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     const entry = applicant[key];
                     return entry && typeof entry === 'object' ? entry.value : (entry || '');
                 };
+                
+                const score = calculateSpecificScore(email, useConsensus ? 'consensus' : 'primary');
+                
                 exportData.push({
                     "Email": email,
                     "First Name": getAppVal('General Information First name'),
@@ -202,8 +213,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     "Prof. Exp.": r.prof || 0,
                     "English Skills": r.english || 0,
                     "CV & Cover Letter": r.cv || 0,
-                    "Total Score": parseFloat(calculateScore(email).toFixed(2)),
-                    "Reviewer Notes": reviewerNotes[email] || ''
+                    "Total Score": parseFloat(score.toFixed(2)),
+                    "Reviewer Notes": targetNotes[email] || ''
                 });
             });
             const ws = XLSX.utils.json_to_sheet(exportData);
@@ -215,7 +226,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 const cellRef = XLSX.utils.encode_cell({c: 9, r: i + 1}); // J is column index 9
                 
                 // Keep the static calculated value as a fallback, but append the formula
-                const val = parseFloat(calculateScore(exportData[i].Email).toFixed(2));
+                const score = calculateSpecificScore(exportData[i].Email, useConsensus ? 'consensus' : 'primary');
+                const val = parseFloat(score.toFixed(2));
                 ws[cellRef] = { t: 'n', v: val, f: formula };
             }
 
@@ -224,8 +236,9 @@ document.addEventListener("DOMContentLoaded", () => {
             ws['!cols'][10] = { wch: 40 };
 
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Grades");
-            XLSX.writeFile(wb, `${originalFilename}_grades.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, useConsensus ? "Consensus Grades" : "Grades");
+            const filenameSuffix = useConsensus ? "_consensus_grades.xlsx" : "_grades.xlsx";
+            XLSX.writeFile(wb, `${originalFilename}${filenameSuffix}`);
         });
     }
 
