@@ -970,12 +970,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             if (Object.keys(secondaryReviewers).length > 0) {
                 // Multiple reviewers: show all
-                const hasConsensus = consensusRatings[email] && Object.keys(consensusRatings[email]).length > 0;
-                if (hasConsensus) {
-                    const conScore = calculateSpecificScore(email, 'consensus').toFixed(1);
-                    scoresHtml += `<span class="applicant-score consensus-score evaluated" title="Consensus Score">${conScore}</span>`;
-                }
-                
                 if (hasRatings) {
                     scoresHtml += `<span class="applicant-score primary-score evaluated" title="Your Score">${primaryScore}</span>`;
                 }
