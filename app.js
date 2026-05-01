@@ -95,6 +95,15 @@ document.addEventListener("DOMContentLoaded", () => {
     let reviewerNotes = JSON.parse(localStorage.getItem('reviewerNotes')) || {};
     let docBasePath = localStorage.getItem('docBasePath') || 'data/';
     let secondaryReviewers = JSON.parse(localStorage.getItem('secondaryReviewers')) || {};
+    
+    let primaryReviewerName = localStorage.getItem('primaryReviewerName');
+    let consensusRatings = JSON.parse(localStorage.getItem('consensusRatings')) || {};
+    let consensusNotes = JSON.parse(localStorage.getItem('consensusNotes')) || {};
+
+    if (!primaryReviewerName) {
+        primaryReviewerName = prompt("Welcome! Please enter your name to identify your reviews:", "Reviewer") || "Reviewer";
+        localStorage.setItem('primaryReviewerName', primaryReviewerName);
+    }
 
     // Settings Modal & Evaluation UI
     const settingsBtn = document.getElementById("settingsBtn");
@@ -230,7 +239,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 ratings: ratings,
                 reviewerNotes: reviewerNotes,
                 markedCandidates: markedCandidates,
-                docBasePath: docBasePath
+                docBasePath: docBasePath,
+                primaryReviewerName: primaryReviewerName,
+                consensusRatings: consensusRatings,
+                consensusNotes: consensusNotes
             };
             const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -360,6 +372,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     docBasePath = state.docBasePath;
                     localStorage.setItem('docBasePath', docBasePath);
                 }
+                if (state.primaryReviewerName) {
+                    primaryReviewerName = state.primaryReviewerName;
+                    localStorage.setItem('primaryReviewerName', primaryReviewerName);
+                }
+                if (state.consensusRatings) {
+                    consensusRatings = state.consensusRatings;
+                    localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+                }
+                if (state.consensusNotes) {
+                    consensusNotes = state.consensusNotes;
+                    localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
+                }
                 
                 const count = Object.keys(state.ratings || {}).length;
                 alert(`Successfully overridden review state (${count} rated applicants).`);
@@ -399,8 +423,78 @@ document.addEventListener("DOMContentLoaded", () => {
                 const notesEl = document.getElementById('reviewerNotes');
                 if (notesEl) notesEl.value = reviewerNotes[currentApplicantEmail] || '';
             }
+            recalculateConsensus();
             updateApplicantList();
         });
+    }
+
+    function recalculateConsensus() {
+        if (Object.keys(secondaryReviewers).length === 0) return;
+        
+        const allEmails = new Set([...Object.keys(ratings)]);
+        for (const reviewerData of Object.values(secondaryReviewers)) {
+            if (reviewerData.ratings) {
+                Object.keys(reviewerData.ratings).forEach(email => allEmails.add(email));
+            }
+        }
+        
+        allEmails.forEach(email => {
+            let counts = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+            let sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+            let combinedNotes = [];
+            
+            // Add primary reviewer
+            if (ratings[email]) {
+                Object.keys(sums).forEach(k => {
+                    if (ratings[email][k] !== undefined) {
+                        sums[k] += ratings[email][k];
+                        counts[k]++;
+                    }
+                });
+            }
+            if (reviewerNotes[email] && reviewerNotes[email].trim()) {
+                combinedNotes.push(`${primaryReviewerName}:\n${reviewerNotes[email].trim()}`);
+            }
+            
+            // Add secondary reviewers
+            for (const [reviewerName, reviewerData] of Object.entries(secondaryReviewers)) {
+                if (reviewerData.ratings && reviewerData.ratings[email]) {
+                    Object.keys(sums).forEach(k => {
+                        if (reviewerData.ratings[email][k] !== undefined) {
+                            sums[k] += reviewerData.ratings[email][k];
+                            counts[k]++;
+                        }
+                    });
+                }
+                if (reviewerData.notes && reviewerData.notes[email] && reviewerData.notes[email].trim()) {
+                    combinedNotes.push(`${reviewerName}:\n${reviewerData.notes[email].trim()}`);
+                }
+            }
+            
+            // Calculate average
+            if (!consensusRatings[email]) consensusRatings[email] = {};
+            Object.keys(sums).forEach(k => {
+                if (counts[k] > 0) {
+                    consensusRatings[email][k] = parseFloat((sums[k] / counts[k]).toFixed(1));
+                }
+            });
+            
+            if (!consensusNotes[email]) {
+                consensusNotes[email] = combinedNotes.join('\n\n');
+            }
+        });
+        
+        localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+        localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
+        
+        // Re-render current applicant to show consensus panel
+        if (currentApplicantEmail) {
+            const applicant = applicantsData.find(a => {
+                const e = a['Email'];
+                return (e && typeof e === 'object' ? e.value : e) === currentApplicantEmail;
+            });
+            if (applicant) showApplicantDetails(applicant);
+        }
     }
 
     // Helper to clamp a value to 0-10
@@ -973,6 +1067,90 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 evalContainer.appendChild(panelEl);
+            }
+
+            // Render Consensus Panel if there are secondary reviewers
+            if (Object.keys(secondaryReviewers).length > 0) {
+                const conRatings = consensusRatings[currentApplicantEmail] || {};
+                const conNotes = consensusNotes[currentApplicantEmail] || '';
+                
+                // Calculate consensus score
+                let conScore = 0;
+                let totalWeight = 0;
+                Object.keys(weights).forEach(k => {
+                    totalWeight += weights[k];
+                    conScore += (conRatings[k] || 0) * weights[k];
+                });
+                conScore = totalWeight > 0 ? (conScore / totalWeight) : 0;
+                
+                const consensusHtml = `
+                    <section class="card evaluation-panel consensus-panel" style="flex: 1; min-width: 300px; margin-bottom: 0; border: 2px solid #3b82f6; background-color: #eff6ff;">
+                        <div class="eval-header">
+                            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                                <h2>Consensus Evaluation</h2>
+                            </div>
+                            <div class="total-score">Score: <strong>${conScore.toFixed(2)}</strong> / 10</div>
+                        </div>
+                        <div class="eval-grid">
+                            <div class="eval-input"><label>BSc Grade</label><input type="text" id="con_bsc" value="${conRatings.bsc !== undefined ? conRatings.bsc : ''}"></div>
+                            <div class="eval-input"><label>MSc Grade</label><input type="text" id="con_msc" value="${conRatings.msc !== undefined ? conRatings.msc : ''}"></div>
+                            <div class="eval-input"><label>Research Exp.</label><input type="text" id="con_research" value="${conRatings.research !== undefined ? conRatings.research : ''}"></div>
+                            <div class="eval-input"><label>Prof. Exp.</label><input type="text" id="con_prof" value="${conRatings.prof !== undefined ? conRatings.prof : ''}"></div>
+                            <div class="eval-input"><label>English Skills</label><input type="text" id="con_english" value="${conRatings.english !== undefined ? conRatings.english : ''}"></div>
+                            <div class="eval-input"><label>CV & Cover Letter</label><input type="text" id="con_cv" value="${conRatings.cv !== undefined ? conRatings.cv : ''}"></div>
+                        </div>
+                        <div class="reviewer-notes-container mt-4">
+                            <label class="reviewer-notes-label">Consensus Notes</label>
+                            <textarea id="con_notes" class="reviewer-notes">${conNotes}</textarea>
+                        </div>
+                    </section>
+                `;
+                
+                const template = document.createElement('template');
+                template.innerHTML = consensusHtml.trim();
+                const conPanelEl = template.content.firstChild;
+                
+                // Add event listeners to inputs to save to consensusRatings and consensusNotes
+                const conInputs = {
+                    bsc: conPanelEl.querySelector('#con_bsc'),
+                    msc: conPanelEl.querySelector('#con_msc'),
+                    research: conPanelEl.querySelector('#con_research'),
+                    prof: conPanelEl.querySelector('#con_prof'),
+                    english: conPanelEl.querySelector('#con_english'),
+                    cv: conPanelEl.querySelector('#con_cv')
+                };
+                Object.keys(conInputs).forEach(k => {
+                    conInputs[k].addEventListener('input', () => {
+                        if (!currentApplicantEmail) return;
+                        if (!consensusRatings[currentApplicantEmail]) consensusRatings[currentApplicantEmail] = {};
+                        
+                        let val = parseFloat(conInputs[k].value);
+                        if (isNaN(val)) val = 0;
+                        val = clampScore(val);
+                        
+                        consensusRatings[currentApplicantEmail][k] = val;
+                        localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+                        
+                        // Recalculate score
+                        let s = 0;
+                        let tw = 0;
+                        Object.keys(weights).forEach(wk => {
+                            tw += weights[wk];
+                            s += (consensusRatings[currentApplicantEmail][wk] || 0) * weights[wk];
+                        });
+                        const updatedScore = tw > 0 ? (s / tw) : 0;
+                        conPanelEl.querySelector('.total-score strong').textContent = updatedScore.toFixed(2);
+                    });
+                });
+                
+                const conNotesEl = conPanelEl.querySelector('#con_notes');
+                conNotesEl.addEventListener('input', () => {
+                    if (!currentApplicantEmail) return;
+                    consensusNotes[currentApplicantEmail] = conNotesEl.value;
+                    localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
+                });
+                
+                evalContainer.insertBefore(conPanelEl, evalContainer.children[1]);
             }
         }
         
