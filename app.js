@@ -389,24 +389,17 @@ document.addEventListener("DOMContentLoaded", () => {
             closeImport();
 
             if (currentApplicantEmail) {
-                        const userRatings = ratings[currentApplicantEmail] || {};
-                        Object.keys(evalInputs).forEach(k => {
-                            if(evalInputs[k]) {
-                                evalInputs[k].value = userRatings[k] !== undefined ? userRatings[k] : '';
-                            }
-                        });
-                        updateScore(currentApplicantEmail);
-                        const notesEl = document.getElementById('reviewerNotes');
-                        if (notesEl) notesEl.value = reviewerNotes[currentApplicantEmail] || '';
+                const userRatings = ratings[currentApplicantEmail] || {};
+                Object.keys(evalInputs).forEach(k => {
+                    if(evalInputs[k]) {
+                        evalInputs[k].value = userRatings[k] !== undefined ? userRatings[k] : '';
                     }
-                    updateApplicantList();
-                } catch (error) {
-                    console.error("Error loading state:", error);
-                    alert("Error parsing the state file. Please ensure it's a valid review state JSON.");
-                }
-            };
-            reader.readAsText(file);
-            e.target.value = '';
+                });
+                updateScore(currentApplicantEmail);
+                const notesEl = document.getElementById('reviewerNotes');
+                if (notesEl) notesEl.value = reviewerNotes[currentApplicantEmail] || '';
+            }
+            updateApplicantList();
         });
     }
 
