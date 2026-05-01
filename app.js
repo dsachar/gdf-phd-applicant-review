@@ -206,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 "Prof. Exp.": r.prof || 0,
                 "English Skills": r.english || 0,
                 "CV & Cover Letter": r.cv || 0,
-                "Total Score": parseFloat(score.toFixed(2)),
+                "Total Score": parseFloat(score.toFixed(1)),
                 "Reviewer Notes": targetNotes[email] || ''
             });
         });
@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Keep the static calculated value as a fallback, but append the formula
             const score = calculateSpecificScore(exportData[i].Email, useConsensus ? 'consensus' : 'primary');
-            const val = parseFloat(score.toFixed(2));
+            const val = parseFloat(score.toFixed(1));
             ws[cellRef] = { t: 'n', v: val, f: formula };
         }
 
@@ -1261,7 +1261,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 <h2>${reviewerName}</h2>
                                 <button class="btn-secondary remove-reviewer-btn" data-name="${reviewerName}" style="padding: 2px 6px; font-size: 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; background: transparent; cursor: pointer; color: var(--text-muted);" title="Remove Reviewer">&times;</button>
                             </div>
-                            <div class="total-score">Score: <strong>${revScore.toFixed(2)}</strong> / 10</div>
+                            <div class="total-score">Score: <strong>${revScore.toFixed(1)}</strong> / 10</div>
                         </div>
                         <div class="eval-grid">
                             <div class="eval-input"><label>BSc Grade</label><input type="text" value="${revRatings.bsc !== undefined ? revRatings.bsc : '-'}" disabled></div>
@@ -1368,7 +1368,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                                 <h2>Consensus Evaluation</h2>
                             </div>
-                            <div class="total-score">Score: <strong>${conScore.toFixed(2)}</strong> / 10</div>
+                            <div class="total-score">Score: <strong>${conScore.toFixed(1)}</strong> / 10</div>
                         </div>
                         <div class="eval-grid">
                             <div class="eval-input"><label>BSc Grade</label><input type="text" id="con_bsc" value="${conRatings.bsc !== undefined ? conRatings.bsc : ''}"></div>
@@ -1418,7 +1418,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             s += (consensusRatings[currentApplicantEmail][wk] || 0) * weights[wk];
                         });
                         const updatedScore = tw > 0 ? (s / tw) : 0;
-                        conPanelEl.querySelector('.total-score strong').textContent = updatedScore.toFixed(2);
+                        conPanelEl.querySelector('.total-score strong').textContent = updatedScore.toFixed(1);
                     });
                 });
                 
