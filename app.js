@@ -170,75 +170,100 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function doExportGrades(useConsensus) {
+        const targetRatings = useConsensus ? consensusRatings : ratings;
+        const targetNotes = useConsensus ? consensusNotes : reviewerNotes;
+
+        if (Object.keys(targetRatings).length === 0 && Object.keys(targetNotes).length === 0) {
+            alert(`No ${useConsensus ? 'consensus ' : ''}grades to export yet.`);
+            return;
+        }
+        // Collect all emails that have either ratings or notes
+        const allEmails = new Set([...Object.keys(targetRatings), ...Object.keys(targetNotes)]);
+        const exportData = [];
+        allEmails.forEach(email => {
+            const r = targetRatings[email] || {};
+            // Look up applicant record to get name fields
+            const applicant = applicantsData.find(a => {
+                const e = a['Email'];
+                return (e && typeof e === 'object' ? e.value : e) === email;
+            });
+            const getAppVal = (key) => {
+                if (!applicant) return '';
+                const entry = applicant[key];
+                return entry && typeof entry === 'object' ? entry.value : (entry || '');
+            };
+            
+            const score = calculateSpecificScore(email, useConsensus ? 'consensus' : 'primary');
+            
+            exportData.push({
+                "Email": email,
+                "First Name": getAppVal('General Information First name'),
+                "Last Name": getAppVal('Last name'),
+                "BSc Grade": r.bsc || 0,
+                "MSc Grade": r.msc || 0,
+                "Research Exp.": r.research || 0,
+                "Prof. Exp.": r.prof || 0,
+                "English Skills": r.english || 0,
+                "CV & Cover Letter": r.cv || 0,
+                "Total Score": parseFloat(score.toFixed(2)),
+                "Reviewer Notes": targetNotes[email] || ''
+            });
+        });
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        
+        // Add actual Excel formulas for the Total Score (column J = index 9)
+        for (let i = 0; i < exportData.length; i++) {
+            const rowNum = i + 2; // 1 for header, 1 for 1-based index
+            const formula = `D${rowNum}*(${weights.bsc}/100)+E${rowNum}*(${weights.msc}/100)+F${rowNum}*(${weights.research}/100)+G${rowNum}*(${weights.prof}/100)+H${rowNum}*(${weights.english}/100)+I${rowNum}*(${weights.cv}/100)`;
+            const cellRef = XLSX.utils.encode_cell({c: 9, r: i + 1}); // J is column index 9
+            
+            // Keep the static calculated value as a fallback, but append the formula
+            const score = calculateSpecificScore(exportData[i].Email, useConsensus ? 'consensus' : 'primary');
+            const val = parseFloat(score.toFixed(2));
+            ws[cellRef] = { t: 'n', v: val, f: formula };
+        }
+
+        // Set column width for Reviewer Notes (column K = index 10)
+        if (!ws['!cols']) ws['!cols'] = [];
+        ws['!cols'][10] = { wch: 40 };
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, useConsensus ? "Consensus Grades" : "Grades");
+        const filenameSuffix = useConsensus ? "_consensus_grades.xlsx" : "_grades.xlsx";
+        XLSX.writeFile(wb, `${originalFilename}${filenameSuffix}`);
+    }
+
     const exportGradesBtn = document.getElementById("exportGradesBtn");
+    const exportModal = document.getElementById("exportModal");
+    const closeExportModal = document.getElementById("closeExportModal");
+    const exportPersonalBtn = document.getElementById("exportPersonalBtn");
+    const exportConsensusBtn = document.getElementById("exportConsensusBtn");
+
     if (exportGradesBtn) {
         exportGradesBtn.addEventListener('click', () => {
-            let useConsensus = false;
             if (Object.keys(secondaryReviewers).length > 0) {
-                useConsensus = confirm("You have multiple reviewers loaded. Would you like to export the Consensus Evaluation instead of your personal evaluation?\n\nClick 'OK' to export Consensus Grades.\nClick 'Cancel' to export Personal Grades.");
+                // Show modal with two options
+                exportModal.classList.remove('hidden');
+            } else {
+                // No secondary reviewers, export personal directly
+                doExportGrades(false);
             }
-            
-            const targetRatings = useConsensus ? consensusRatings : ratings;
-            const targetNotes = useConsensus ? consensusNotes : reviewerNotes;
-
-            if (Object.keys(targetRatings).length === 0 && Object.keys(targetNotes).length === 0) {
-                alert(`No ${useConsensus ? 'consensus ' : ''}grades to export yet.`);
-                return;
-            }
-            // Collect all emails that have either ratings or notes
-            const allEmails = new Set([...Object.keys(targetRatings), ...Object.keys(targetNotes)]);
-            const exportData = [];
-            allEmails.forEach(email => {
-                const r = targetRatings[email] || {};
-                // Look up applicant record to get name fields
-                const applicant = applicantsData.find(a => {
-                    const e = a['Email'];
-                    return (e && typeof e === 'object' ? e.value : e) === email;
-                });
-                const getAppVal = (key) => {
-                    if (!applicant) return '';
-                    const entry = applicant[key];
-                    return entry && typeof entry === 'object' ? entry.value : (entry || '');
-                };
-                
-                const score = calculateSpecificScore(email, useConsensus ? 'consensus' : 'primary');
-                
-                exportData.push({
-                    "Email": email,
-                    "First Name": getAppVal('General Information First name'),
-                    "Last Name": getAppVal('Last name'),
-                    "BSc Grade": r.bsc || 0,
-                    "MSc Grade": r.msc || 0,
-                    "Research Exp.": r.research || 0,
-                    "Prof. Exp.": r.prof || 0,
-                    "English Skills": r.english || 0,
-                    "CV & Cover Letter": r.cv || 0,
-                    "Total Score": parseFloat(score.toFixed(2)),
-                    "Reviewer Notes": targetNotes[email] || ''
-                });
-            });
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            
-            // Add actual Excel formulas for the Total Score (column J = index 9)
-            for (let i = 0; i < exportData.length; i++) {
-                const rowNum = i + 2; // 1 for header, 1 for 1-based index
-                const formula = `D${rowNum}*(${weights.bsc}/100)+E${rowNum}*(${weights.msc}/100)+F${rowNum}*(${weights.research}/100)+G${rowNum}*(${weights.prof}/100)+H${rowNum}*(${weights.english}/100)+I${rowNum}*(${weights.cv}/100)`;
-                const cellRef = XLSX.utils.encode_cell({c: 9, r: i + 1}); // J is column index 9
-                
-                // Keep the static calculated value as a fallback, but append the formula
-                const score = calculateSpecificScore(exportData[i].Email, useConsensus ? 'consensus' : 'primary');
-                const val = parseFloat(score.toFixed(2));
-                ws[cellRef] = { t: 'n', v: val, f: formula };
-            }
-
-            // Set column width for Reviewer Notes (column K = index 10)
-            if (!ws['!cols']) ws['!cols'] = [];
-            ws['!cols'][10] = { wch: 40 };
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, useConsensus ? "Consensus Grades" : "Grades");
-            const filenameSuffix = useConsensus ? "_consensus_grades.xlsx" : "_grades.xlsx";
-            XLSX.writeFile(wb, `${originalFilename}${filenameSuffix}`);
+        });
+    }
+    if (closeExportModal) {
+        closeExportModal.addEventListener('click', () => exportModal.classList.add('hidden'));
+    }
+    if (exportPersonalBtn) {
+        exportPersonalBtn.addEventListener('click', () => {
+            exportModal.classList.add('hidden');
+            doExportGrades(false);
+        });
+    }
+    if (exportConsensusBtn) {
+        exportConsensusBtn.addEventListener('click', () => {
+            exportModal.classList.add('hidden');
+            doExportGrades(true);
         });
     }
 

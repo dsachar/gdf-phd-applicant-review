@@ -159,6 +159,27 @@
         </div>
     </div>
 
+    <!-- Export Grades Modal -->
+    <div id="exportModal" class="modal hidden">
+        <div class="modal-content card" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2>Export Grades</h2>
+                <button id="closeExportModal" class="close-btn">&times;</button>
+            </div>
+            <p class="text-muted" style="margin-bottom: 20px; font-size: 0.9rem;">Choose which grades to export as an Excel file.</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button id="exportPersonalBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Export Personal Grades</span>
+                </button>
+                <button id="exportConsensusBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px; background: #2563eb;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Export Consensus Grades</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Application UI (Hidden Initially) -->
     <div id="appContainer" class="app-container hidden">
         <!-- Top Bar -->
