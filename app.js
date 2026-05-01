@@ -406,6 +406,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     notes: state.reviewerNotes || {}
                 };
                 localStorage.setItem('secondaryReviewers', JSON.stringify(secondaryReviewers));
+                if (typeof updateSortOptions === 'function') updateSortOptions();
                 
                 alert(`Successfully added "${name}" as a secondary reviewer.`);
             }
@@ -537,6 +538,27 @@ document.addEventListener("DOMContentLoaded", () => {
         let score = 0;
         Object.keys(weights).forEach(k => {
             const s = clampScore(ratings[email][k] || 0);
+            score += s * (weights[k] / 100);
+        });
+        return score;
+    }
+
+    function calculateSpecificScore(email, type) {
+        let revRatings = {};
+        if (type === 'consensus') {
+            revRatings = consensusRatings[email] || {};
+        } else if (type.startsWith('sec_')) {
+            const name = type.substring(4);
+            if (secondaryReviewers[name] && secondaryReviewers[name].ratings) {
+                revRatings = secondaryReviewers[name].ratings[email] || {};
+            }
+        } else {
+            revRatings = ratings[email] || {};
+        }
+        
+        let score = 0;
+        Object.keys(weights).forEach(k => {
+            const s = clampScore(revRatings[k] || 0);
             score += s * (weights[k] / 100);
         });
         return score;
@@ -745,6 +767,50 @@ document.addEventListener("DOMContentLoaded", () => {
     const evalFilterSelect = document.getElementById('evalFilterSelect');
     const markedFilterSelect = document.getElementById('markedFilterSelect');
     
+    function updateSortOptions() {
+        if (!sortSelect) return;
+        const currentVal = sortSelect.value;
+        
+        sortSelect.innerHTML = `
+            <option value="original">Sort by: Original Order</option>
+            <option value="nameAsc">Sort by: Name (Last, First)</option>
+        `;
+        
+        const hasSecondary = Object.keys(secondaryReviewers).length > 0;
+        
+        if (hasSecondary) {
+            sortSelect.innerHTML += `
+                <option value="scoreDesc_primary">Rating: ${primaryReviewerName} (Highest)</option>
+                <option value="scoreAsc_primary">Rating: ${primaryReviewerName} (Lowest)</option>
+            `;
+            for (const reviewerName of Object.keys(secondaryReviewers)) {
+                sortSelect.innerHTML += `
+                    <option value="scoreDesc_sec_${reviewerName}">Rating: ${reviewerName} (Highest)</option>
+                    <option value="scoreAsc_sec_${reviewerName}">Rating: ${reviewerName} (Lowest)</option>
+                `;
+            }
+            sortSelect.innerHTML += `
+                <option value="scoreDesc_consensus">Rating: Consensus (Highest)</option>
+                <option value="scoreAsc_consensus">Rating: Consensus (Lowest)</option>
+            `;
+        } else {
+            sortSelect.innerHTML += `
+                <option value="scoreDesc_primary">Sort by: Rating (Highest first)</option>
+                <option value="scoreAsc_primary">Sort by: Rating (Lowest first)</option>
+            `;
+        }
+        
+        // Restore previous value if it still exists
+        const optionExists = Array.from(sortSelect.options).some(opt => opt.value === currentVal);
+        if (optionExists) {
+            sortSelect.value = currentVal;
+        } else {
+            sortSelect.value = 'original';
+        }
+    }
+    updateSortOptions();
+
+    
     function updateApplicantList() {
         const term = searchInput.value.toLowerCase();
         const sortVal = sortSelect ? sortSelect.value : 'original';
@@ -831,10 +897,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const nameA = (getVal(a, 'Last name') + ' ' + getVal(a, 'General Information First name')).toLowerCase();
                     const nameB = (getVal(b, 'Last name') + ' ' + getVal(b, 'General Information First name')).toLowerCase();
                     return nameA.localeCompare(nameB);
-                } else if (sortVal === 'scoreDesc' || sortVal === 'scoreAsc') {
-                    const scoreA = calculateScore(getVal(a, 'Email'));
-                    const scoreB = calculateScore(getVal(b, 'Email'));
-                    return sortVal === 'scoreDesc' ? scoreB - scoreA : scoreA - scoreB;
+                } else if (sortVal.startsWith('scoreDesc') || sortVal.startsWith('scoreAsc')) {
+                    const isDesc = sortVal.startsWith('scoreDesc');
+                    const parts = sortVal.split('_');
+                    let type = parts[1] || 'primary';
+                    if (type === 'sec' && parts[2]) type = 'sec_' + parts[2];
+                    
+                    const scoreA = calculateSpecificScore(getVal(a, 'Email'), type);
+                    const scoreB = calculateSpecificScore(getVal(b, 'Email'), type);
+                    return isDesc ? scoreB - scoreA : scoreA - scoreB;
                 }
                 return 0;
             });
@@ -882,13 +953,46 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             
             const email = getVal('Email');
-            const score = calculateScore(email).toFixed(1);
+            
+            // Build scores HTML
+            let scoresHtml = '';
             const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
-            const statusClass = hasRatings ? 'evaluated' : '';
+            const primaryScore = calculateSpecificScore(email, 'primary').toFixed(1);
+            
+            if (Object.keys(secondaryReviewers).length > 0) {
+                // Multiple reviewers: show all
+                const hasConsensus = consensusRatings[email] && Object.keys(consensusRatings[email]).length > 0;
+                if (hasConsensus) {
+                    const conScore = calculateSpecificScore(email, 'consensus').toFixed(1);
+                    scoresHtml += `<span class="applicant-score consensus-score evaluated" title="Consensus Score">${conScore}</span>`;
+                }
+                
+                if (hasRatings) {
+                    scoresHtml += `<span class="applicant-score primary-score evaluated" title="Your Score">${primaryScore}</span>`;
+                }
+                
+                for (const reviewerName of Object.keys(secondaryReviewers)) {
+                    const revHasRatings = secondaryReviewers[reviewerName].ratings && secondaryReviewers[reviewerName].ratings[email] && Object.keys(secondaryReviewers[reviewerName].ratings[email]).length > 0;
+                    if (revHasRatings) {
+                        const revScore = calculateSpecificScore(email, `sec_${reviewerName}`).toFixed(1);
+                        scoresHtml += `<span class="applicant-score secondary-score evaluated" title="Score by ${reviewerName}">${revScore}</span>`;
+                    }
+                }
+                
+                if (scoresHtml === '') {
+                    // No one has evaluated yet
+                    scoresHtml = `<span class="applicant-score">0.0</span>`;
+                }
+            } else {
+                // Single reviewer: standard display
+                const statusClass = hasRatings ? 'evaluated' : '';
+                scoresHtml = `<span class="applicant-score ${statusClass}">${primaryScore}</span>`;
+            }
+
             const isMarked = !!markedCandidates[email];
             const bookmarkIcon = isMarked ? '<span class="sidebar-bookmark" title="Marked"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span>' : '';
             li.innerHTML = `
-                <span class="applicant-score ${statusClass}">${score}</span>
+                <div class="applicant-scores-container">${scoresHtml}</div>
                 ${bookmarkIcon}
                 <h4>${displayFirstName} ${displayLastName}</h4>
                 <p>${country}</p>
@@ -907,6 +1011,13 @@ document.addEventListener("DOMContentLoaded", () => {
             
             applicantList.appendChild(li);
         });
+        
+        if (term) {
+            const firstMatch = applicantList.querySelector('mark');
+            if (firstMatch) {
+                firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
     }
 
     function showApplicantDetails(applicant) {
@@ -1016,6 +1127,13 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Render Secondary Reviewer Panels
         const evalContainer = document.getElementById('evaluationsContainer');
+        
+        // Remove any existing consensus panel that might be outside evalContainer
+        const existingConPanel = document.querySelector('.consensus-panel');
+        if (existingConPanel) {
+            existingConPanel.remove();
+        }
+        
         if (evalContainer) {
             // Keep the first child (primary evaluation) and remove the rest
             while (evalContainer.children.length > 1) {
@@ -1073,6 +1191,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (confirm(`Are you sure you want to remove reviewer "${reviewerName}"?`)) {
                             delete secondaryReviewers[reviewerName];
                             localStorage.setItem('secondaryReviewers', JSON.stringify(secondaryReviewers));
+                            if (typeof updateSortOptions === 'function') updateSortOptions();
                             showApplicantDetails(applicant); // re-render
                         }
                     });
@@ -1083,10 +1202,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Render Consensus Panel if there are secondary reviewers
             if (Object.keys(secondaryReviewers).length > 0) {
-                const conRatings = consensusRatings[currentApplicantEmail] || {};
-                const conNotes = consensusNotes[currentApplicantEmail] || '';
+                let conRatings = consensusRatings[currentApplicantEmail];
+                let conNotes = consensusNotes[currentApplicantEmail];
                 
-                // Calculate consensus score
+                // If it hasn't been explicitly calculated or saved for this applicant, pre-populate it dynamically
+                if (!conRatings) {
+                    conRatings = {};
+                    const counts = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                    const sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                    let combinedNotes = [];
+                    
+                    if (ratings[currentApplicantEmail]) {
+                        Object.keys(sums).forEach(k => {
+                            if (ratings[currentApplicantEmail][k] !== undefined) {
+                                sums[k] += ratings[currentApplicantEmail][k];
+                                counts[k]++;
+                            }
+                        });
+                    }
+                    if (reviewerNotes[currentApplicantEmail] && reviewerNotes[currentApplicantEmail].trim()) {
+                        combinedNotes.push(`${primaryReviewerName || 'Primary'}:\n${reviewerNotes[currentApplicantEmail].trim()}`);
+                    }
+                    
+                    Object.entries(secondaryReviewers).forEach(([name, data]) => {
+                        if (data.ratings && data.ratings[currentApplicantEmail]) {
+                            Object.keys(sums).forEach(k => {
+                                if (data.ratings[currentApplicantEmail][k] !== undefined) {
+                                    sums[k] += data.ratings[currentApplicantEmail][k];
+                                    counts[k]++;
+                                }
+                            });
+                        }
+                        if (data.notes && data.notes[currentApplicantEmail] && data.notes[currentApplicantEmail].trim()) {
+                            combinedNotes.push(`${name}:\n${data.notes[currentApplicantEmail].trim()}`);
+                        }
+                    });
+                    
+                    Object.keys(sums).forEach(k => {
+                        if (counts[k] > 0) {
+                            conRatings[k] = sums[k] / counts[k];
+                        }
+                    });
+                    
+                    conNotes = combinedNotes.join('\n\n');
+                    
+                    // Save dynamically calculated state so it persists
+                    consensusRatings[currentApplicantEmail] = conRatings;
+                    consensusNotes[currentApplicantEmail] = conNotes;
+                    localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+                    localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
+                    if (typeof updateApplicantList === 'function') updateApplicantList(); // refresh scores
+                }
+                
+                // Calculate consensus score for display
                 let conScore = 0;
                 let totalWeight = 0;
                 Object.keys(weights).forEach(k => {
@@ -1162,7 +1330,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
                 });
                 
-                evalContainer.insertBefore(conPanelEl, evalContainer.children[1]);
+                // Add margins since it's below the container
+                conPanelEl.style.marginTop = '20px';
+                conPanelEl.style.width = '100%';
+                evalContainer.insertAdjacentElement('afterend', conPanelEl);
             }
         }
         

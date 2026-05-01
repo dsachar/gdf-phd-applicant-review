@@ -820,12 +820,29 @@ body {
     font-size: 0.75rem;
     font-weight: 600;
 }
+.applicant-scores-container {
+    float: right;
+    display: flex;
+    gap: 4px;
+}
+.applicant-scores-container .applicant-score {
+    float: none;
+}
 .applicant-score.evaluated {
     background: #dcfce7;
     color: #166534;
 }
 .applicant-score.evaluated::before {
     content: '✓ ';
+}
+.applicant-score.consensus-score.evaluated {
+    background: #dbeafe;
+    color: #1e40af;
+}
+.applicant-score.secondary-score.evaluated {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
 }
 
 /* Custom Tooltips */
