@@ -759,14 +759,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return entry && typeof entry === 'object' ? entry.value : entry;
         };
 
-        // 1. Filter by search term first (common to everything)
-        const searchFiltered = applicantsData.filter(app => {
-            const email = getVal(app, 'Email');
-            if (currentApplicantEmail && email === currentApplicantEmail) return true;
-            const firstName = (getVal(app, 'General Information First name') || '').toLowerCase();
-            const lastName = (getVal(app, 'Last name') || '').toLowerCase();
-            return firstName.includes(term) || lastName.includes(term);
-        });
+        // 1. We no longer filter by search term, but we will highlight it in the UI
+        const searchFiltered = applicantsData;
 
         // 2. Calculate counts for Evaluation Dropdown (depends on Search + Marked Filter)
         const forEvalDropdown = searchFiltered.filter(app => {
@@ -856,6 +850,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Render Logic ---
     function renderApplicantList(data) {
+        const term = searchInput.value.toLowerCase();
         applicantList.innerHTML = '';
         data.forEach((applicant, index) => {
             const getVal = (key) => {
@@ -869,6 +864,23 @@ document.addEventListener("DOMContentLoaded", () => {
             const lastName = getVal('Last name') || '';
             const country = getVal('Country where you currently live') || '';
             
+            let displayFirstName = firstName;
+            let displayLastName = lastName;
+            
+            if (term) {
+                const highlight = (str) => {
+                    if (!str) return str;
+                    const lowerStr = str.toLowerCase();
+                    const idx = lowerStr.indexOf(term);
+                    if (idx >= 0) {
+                        return str.substring(0, idx) + `<mark style="background-color: #fde047; padding: 0 2px; border-radius: 2px;">${str.substring(idx, idx + term.length)}</mark>` + str.substring(idx + term.length);
+                    }
+                    return str;
+                };
+                displayFirstName = highlight(firstName);
+                displayLastName = highlight(lastName);
+            }
+            
             const email = getVal('Email');
             const score = calculateScore(email).toFixed(1);
             const hasRatings = ratings[email] && Object.keys(ratings[email]).length > 0;
@@ -878,7 +890,7 @@ document.addEventListener("DOMContentLoaded", () => {
             li.innerHTML = `
                 <span class="applicant-score ${statusClass}">${score}</span>
                 ${bookmarkIcon}
-                <h4>${firstName} ${lastName}</h4>
+                <h4>${displayFirstName} ${displayLastName}</h4>
                 <p>${country}</p>
             `;
             
