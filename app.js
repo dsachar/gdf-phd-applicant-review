@@ -794,22 +794,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (hasSecondary) {
             sortSelect.innerHTML += `
                 <option value="scoreDesc_primary">Rating: ${primaryReviewerName} (Highest)</option>
-                <option value="scoreAsc_primary">Rating: ${primaryReviewerName} (Lowest)</option>
             `;
             for (const reviewerName of Object.keys(secondaryReviewers)) {
                 sortSelect.innerHTML += `
                     <option value="scoreDesc_sec_${reviewerName}">Rating: ${reviewerName} (Highest)</option>
-                    <option value="scoreAsc_sec_${reviewerName}">Rating: ${reviewerName} (Lowest)</option>
                 `;
             }
             sortSelect.innerHTML += `
                 <option value="scoreDesc_consensus">Rating: Consensus (Highest)</option>
-                <option value="scoreAsc_consensus">Rating: Consensus (Lowest)</option>
             `;
         } else {
             sortSelect.innerHTML += `
                 <option value="scoreDesc_primary">Sort by: Rating (Highest first)</option>
-                <option value="scoreAsc_primary">Sort by: Rating (Lowest first)</option>
             `;
         }
         
