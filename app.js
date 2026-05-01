@@ -950,7 +950,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <div class="reviewer-notes-container mt-4">
                             <label class="reviewer-notes-label">Notes</label>
-                            <textarea class="reviewer-notes" disabled>${revNotes}</textarea>
+                            <textarea class="reviewer-notes" readonly>${revNotes}</textarea>
                         </div>
                     </section>
                 `;

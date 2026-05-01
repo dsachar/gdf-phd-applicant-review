@@ -1195,16 +1195,21 @@ body {
 .secondary-reviewer-panel h2 {
     color: var(--text-muted);
 }
-.secondary-reviewer-panel .eval-input input, 
-.secondary-reviewer-panel .reviewer-notes {
+.secondary-reviewer-panel .eval-input input {
     background: transparent;
     border-color: transparent;
     color: var(--text-main);
     font-weight: 500;
     pointer-events: none;
-    resize: none;
     box-shadow: none;
     padding-left: 0;
+}
+.secondary-reviewer-panel .reviewer-notes {
+    background: rgba(255, 255, 255, 0.5);
+    border-color: var(--border-color);
+    color: var(--text-main);
+    font-weight: 500;
+    box-shadow: none;
 }
 .secondary-reviewer-panel .eval-input input::placeholder, 
 .secondary-reviewer-panel .reviewer-notes::placeholder {
