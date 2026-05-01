@@ -800,7 +800,7 @@ body {
     transition: var(--transition);
     background: white;
     color: var(--text-main);
-    min-height: 80px;
+    min-height: 120px;
 }
 .reviewer-notes:focus {
     border-color: var(--accent-color);
