@@ -269,27 +269,80 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // --- Save State (JSON) ---
     const saveStateBtn = document.getElementById("saveStateBtn");
+    const exportStateModal = document.getElementById("exportStateModal");
+    const closeExportStateModal = document.getElementById("closeExportStateModal");
+    const exportStateButtons = document.getElementById("exportStateButtons");
+
+    function doExportState(exportRatings, exportNotes, exportMarked, label) {
+        const state = {
+            version: 1,
+            weights: weights,
+            ratings: exportRatings,
+            reviewerNotes: exportNotes,
+            markedCandidates: exportMarked || {},
+            docBasePath: docBasePath,
+            primaryReviewerName: label
+        };
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const safeName = label.replace(/[^a-zA-Z0-9]/g, '_');
+        a.download = `${originalFilename}_${safeName}_review_state.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     if (saveStateBtn) {
         saveStateBtn.addEventListener('click', () => {
-            const state = {
-                version: 1,
-                weights: weights,
-                ratings: ratings,
-                reviewerNotes: reviewerNotes,
-                markedCandidates: markedCandidates,
-                docBasePath: docBasePath,
-                primaryReviewerName: primaryReviewerName,
-                consensusRatings: consensusRatings,
-                consensusNotes: consensusNotes
-            };
-            const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${originalFilename}_review_state.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            if (Object.keys(secondaryReviewers).length > 0) {
+                // Build dynamic buttons
+                exportStateButtons.innerHTML = '';
+                
+                // Personal state button
+                const personalBtn = document.createElement('button');
+                personalBtn.className = 'btn-primary';
+                personalBtn.style.cssText = 'width: 100%; padding: 14px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px;';
+                personalBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span>${primaryReviewerName || 'Personal'} (Your State)</span>`;
+                personalBtn.addEventListener('click', () => {
+                    exportStateModal.classList.add('hidden');
+                    doExportState(ratings, reviewerNotes, markedCandidates, primaryReviewerName || 'Personal');
+                });
+                exportStateButtons.appendChild(personalBtn);
+                
+                // Secondary reviewer buttons
+                for (const [name, data] of Object.entries(secondaryReviewers)) {
+                    const secBtn = document.createElement('button');
+                    secBtn.className = 'btn-primary';
+                    secBtn.style.cssText = 'width: 100%; padding: 14px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px; background: #6b7280;';
+                    secBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><span>${name}</span>`;
+                    secBtn.addEventListener('click', () => {
+                        exportStateModal.classList.add('hidden');
+                        doExportState(data.ratings || {}, data.notes || {}, {}, name);
+                    });
+                    exportStateButtons.appendChild(secBtn);
+                }
+                
+                // Consensus button
+                const conBtn = document.createElement('button');
+                conBtn.className = 'btn-primary';
+                conBtn.style.cssText = 'width: 100%; padding: 14px; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 10px; background: #2563eb;';
+                conBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span>Consensus</span>`;
+                conBtn.addEventListener('click', () => {
+                    exportStateModal.classList.add('hidden');
+                    doExportState(consensusRatings, consensusNotes, markedCandidates, 'Consensus');
+                });
+                exportStateButtons.appendChild(conBtn);
+                
+                exportStateModal.classList.remove('hidden');
+            } else {
+                // No secondary reviewers, export directly
+                doExportState(ratings, reviewerNotes, markedCandidates, primaryReviewerName || 'Personal');
+            }
         });
+    }
+    if (closeExportStateModal) {
+        closeExportStateModal.addEventListener('click', () => exportStateModal.classList.add('hidden'));
     }
 
     // --- Load State (JSON) with Multiple Reviewers Support ---

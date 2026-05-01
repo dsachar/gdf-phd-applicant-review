@@ -180,6 +180,20 @@
         </div>
     </div>
 
+    <!-- Export State Modal -->
+    <div id="exportStateModal" class="modal hidden">
+        <div class="modal-content card" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2>Export Review State</h2>
+                <button id="closeExportStateModal" class="close-btn">&times;</button>
+            </div>
+            <p class="text-muted" style="margin-bottom: 20px; font-size: 0.9rem;">Choose which review state to export as a JSON file.</p>
+            <div id="exportStateButtons" style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- Buttons will be dynamically generated -->
+            </div>
+        </div>
+    </div>
+
     <!-- Main Application UI (Hidden Initially) -->
     <div id="appContainer" class="app-container hidden">
         <!-- Top Bar -->
