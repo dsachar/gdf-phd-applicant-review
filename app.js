@@ -289,9 +289,11 @@ document.addEventListener("DOMContentLoaded", () => {
             let updatedCount = 0;
             allEmails.forEach(email => {
                 const sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                let numReviewersForApplicant = 0;
                 
                 // Primary reviewer
-                if (ratings[email]) {
+                if (ratings[email] && Object.keys(ratings[email]).length > 0) {
+                    numReviewersForApplicant++;
                     Object.keys(sums).forEach(k => {
                         sums[k] += parseFloat(ratings[email][k] || 0);
                     });
@@ -299,21 +301,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Secondary reviewers
                 Object.values(secondaryReviewers).forEach(data => {
-                    if (data.ratings && data.ratings[email]) {
+                    if (data.ratings && data.ratings[email] && Object.keys(data.ratings[email]).length > 0) {
+                        numReviewersForApplicant++;
                         Object.keys(sums).forEach(k => {
                             sums[k] += parseFloat(data.ratings[email][k] || 0);
                         });
                     }
                 });
                 
-                if (!consensusRatings[email]) consensusRatings[email] = {};
-                
-                // Calculate average and update
-                Object.keys(sums).forEach(k => {
-                    const avg = sums[k] / numReviewers;
-                    consensusRatings[email][k] = parseFloat(avg.toFixed(1));
-                });
-                updatedCount++;
+                if (numReviewersForApplicant > 0) {
+                    if (!consensusRatings[email]) consensusRatings[email] = {};
+                    
+                    // Calculate average and update
+                    Object.keys(sums).forEach(k => {
+                        const avg = sums[k] / numReviewersForApplicant;
+                        consensusRatings[email][k] = parseFloat(avg.toFixed(1));
+                    });
+                    updatedCount++;
+                }
             });
             
             localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
@@ -1501,11 +1506,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (recomputeBtn) {
                     recomputeBtn.addEventListener('click', () => {
                         if (!currentApplicantEmail) return;
-                        const numReviewers = 1 + Object.keys(secondaryReviewers).length;
                         const sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                        let numReviewersForApplicant = 0;
                         
                         // Primary reviewer
-                        if (ratings[currentApplicantEmail]) {
+                        if (ratings[currentApplicantEmail] && Object.keys(ratings[currentApplicantEmail]).length > 0) {
+                            numReviewersForApplicant++;
                             Object.keys(sums).forEach(k => {
                                 sums[k] += parseFloat(ratings[currentApplicantEmail][k] || 0);
                             });
@@ -1513,20 +1519,25 @@ document.addEventListener("DOMContentLoaded", () => {
                         
                         // Secondary reviewers
                         Object.values(secondaryReviewers).forEach(data => {
-                            if (data.ratings && data.ratings[currentApplicantEmail]) {
+                            if (data.ratings && data.ratings[currentApplicantEmail] && Object.keys(data.ratings[currentApplicantEmail]).length > 0) {
+                                numReviewersForApplicant++;
                                 Object.keys(sums).forEach(k => {
                                     sums[k] += parseFloat(data.ratings[currentApplicantEmail][k] || 0);
                                 });
                             }
                         });
                         
-                        // Calculate average and update inputs
-                        Object.keys(sums).forEach(k => {
-                            const avg = sums[k] / numReviewers;
-                            conInputs[k].value = parseFloat(avg.toFixed(1));
-                            // Trigger input event to save and recalculate total score
-                            conInputs[k].dispatchEvent(new Event('input'));
-                        });
+                        if (numReviewersForApplicant > 0) {
+                            // Calculate average and update inputs
+                            Object.keys(sums).forEach(k => {
+                                const avg = sums[k] / numReviewersForApplicant;
+                                conInputs[k].value = parseFloat(avg.toFixed(1));
+                                // Trigger input event to save and recalculate total score
+                                conInputs[k].dispatchEvent(new Event('input'));
+                            });
+                        } else {
+                            alert("No evaluations found for this candidate to recompute.");
+                        }
                     });
                 }
                 
