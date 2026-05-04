@@ -196,10 +196,13 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const score = calculateSpecificScore(email, useConsensus ? 'consensus' : 'primary');
             
+            const prefKey = 'Ranked preference for this PhD position (if you apply to other PhD positions) (1= most preferred, 3 less preferred) If you only apply to 1 PhD, please tick "Ranked 1"';
+            
             exportData.push({
                 "Email": email,
                 "First Name": getAppVal('General Information First name'),
                 "Last Name": getAppVal('Last name'),
+                "Position Preference": getAppVal(prefKey),
                 "BSc Grade": r.bsc || 0,
                 "MSc Grade": r.msc || 0,
                 "Research Exp.": r.research || 0,
@@ -212,11 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const ws = XLSX.utils.json_to_sheet(exportData);
         
-        // Add actual Excel formulas for the Total Score (column J = index 9)
+        // Add actual Excel formulas for the Total Score (column K = index 10)
         for (let i = 0; i < exportData.length; i++) {
             const rowNum = i + 2; // 1 for header, 1 for 1-based index
-            const formula = `D${rowNum}*(${weights.bsc}/100)+E${rowNum}*(${weights.msc}/100)+F${rowNum}*(${weights.research}/100)+G${rowNum}*(${weights.prof}/100)+H${rowNum}*(${weights.english}/100)+I${rowNum}*(${weights.cv}/100)`;
-            const cellRef = XLSX.utils.encode_cell({c: 9, r: i + 1}); // J is column index 9
+            const formula = `E${rowNum}*(${weights.bsc}/100)+F${rowNum}*(${weights.msc}/100)+G${rowNum}*(${weights.research}/100)+H${rowNum}*(${weights.prof}/100)+I${rowNum}*(${weights.english}/100)+J${rowNum}*(${weights.cv}/100)`;
+            const cellRef = XLSX.utils.encode_cell({c: 10, r: i + 1}); // K is column index 10
             
             // Keep the static calculated value as a fallback, but append the formula
             const score = calculateSpecificScore(exportData[i].Email, useConsensus ? 'consensus' : 'primary');
@@ -224,9 +227,9 @@ document.addEventListener("DOMContentLoaded", () => {
             ws[cellRef] = { t: 'n', v: val, f: formula };
         }
 
-        // Set column width for Reviewer Notes (column K = index 10)
+        // Set column width for Reviewer Notes (column L = index 11)
         if (!ws['!cols']) ws['!cols'] = [];
-        ws['!cols'][10] = { wch: 40 };
+        ws['!cols'][11] = { wch: 40 };
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, useConsensus ? "Consensus Grades" : "Grades");
