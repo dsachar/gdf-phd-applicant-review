@@ -1367,6 +1367,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <div class="eval-header">
                             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                                 <h2>Consensus Evaluation</h2>
+                                <button id="recomputeConsensusBtn" class="btn-secondary" style="padding: 4px 8px; font-size: 0.8rem; background: white; border: 1px solid var(--border-color); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-main);" title="Recompute average (missing=0)">Recompute (Avg)</button>
                             </div>
                             <div class="total-score">Score: <strong>${conScore.toFixed(1)}</strong> / 10</div>
                         </div>
@@ -1428,6 +1429,39 @@ document.addEventListener("DOMContentLoaded", () => {
                     consensusNotes[currentApplicantEmail] = conNotesEl.value;
                     localStorage.setItem('consensusNotes', JSON.stringify(consensusNotes));
                 });
+                
+                const recomputeBtn = conPanelEl.querySelector('#recomputeConsensusBtn');
+                if (recomputeBtn) {
+                    recomputeBtn.addEventListener('click', () => {
+                        if (!currentApplicantEmail) return;
+                        const numReviewers = 1 + Object.keys(secondaryReviewers).length;
+                        const sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                        
+                        // Primary reviewer
+                        if (ratings[currentApplicantEmail]) {
+                            Object.keys(sums).forEach(k => {
+                                sums[k] += parseFloat(ratings[currentApplicantEmail][k] || 0);
+                            });
+                        }
+                        
+                        // Secondary reviewers
+                        Object.values(secondaryReviewers).forEach(data => {
+                            if (data.ratings && data.ratings[currentApplicantEmail]) {
+                                Object.keys(sums).forEach(k => {
+                                    sums[k] += parseFloat(data.ratings[currentApplicantEmail][k] || 0);
+                                });
+                            }
+                        });
+                        
+                        // Calculate average and update inputs
+                        Object.keys(sums).forEach(k => {
+                            const avg = sums[k] / numReviewers;
+                            conInputs[k].value = parseFloat(avg.toFixed(1));
+                            // Trigger input event to save and recalculate total score
+                            conInputs[k].dispatchEvent(new Event('input'));
+                        });
+                    });
+                }
                 
                 // Add margins since it's below the container
                 conPanelEl.style.marginTop = '20px';
