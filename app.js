@@ -267,6 +267,73 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const recomputeAllBtn = document.getElementById("recomputeAllBtn");
+    if (recomputeAllBtn) {
+        recomputeAllBtn.addEventListener('click', () => {
+            if (Object.keys(secondaryReviewers).length === 0) {
+                alert("No secondary reviewers found. Consensus calculation requires at least one imported reviewer.");
+                return;
+            }
+            if (!confirm("WARNING: This will recompute and overwrite the consensus evaluation for ALL candidates based on the average of reviewer scores (treating missing scores as 0). Do you want to proceed?")) {
+                return;
+            }
+            
+            const numReviewers = 1 + Object.keys(secondaryReviewers).length;
+            const allEmails = new Set([...Object.keys(ratings)]);
+            for (const reviewerData of Object.values(secondaryReviewers)) {
+                if (reviewerData.ratings) {
+                    Object.keys(reviewerData.ratings).forEach(email => allEmails.add(email));
+                }
+            }
+            
+            let updatedCount = 0;
+            allEmails.forEach(email => {
+                const sums = { bsc: 0, msc: 0, research: 0, prof: 0, english: 0, cv: 0 };
+                
+                // Primary reviewer
+                if (ratings[email]) {
+                    Object.keys(sums).forEach(k => {
+                        sums[k] += parseFloat(ratings[email][k] || 0);
+                    });
+                }
+                
+                // Secondary reviewers
+                Object.values(secondaryReviewers).forEach(data => {
+                    if (data.ratings && data.ratings[email]) {
+                        Object.keys(sums).forEach(k => {
+                            sums[k] += parseFloat(data.ratings[email][k] || 0);
+                        });
+                    }
+                });
+                
+                if (!consensusRatings[email]) consensusRatings[email] = {};
+                
+                // Calculate average and update
+                Object.keys(sums).forEach(k => {
+                    const avg = sums[k] / numReviewers;
+                    consensusRatings[email][k] = parseFloat(avg.toFixed(1));
+                });
+                updatedCount++;
+            });
+            
+            localStorage.setItem('consensusRatings', JSON.stringify(consensusRatings));
+            
+            // Re-render current applicant if active
+            if (currentApplicantEmail) {
+                const applicant = applicantsData.find(a => {
+                    const e = a['Email'];
+                    return (e && typeof e === 'object' ? e.value : e) === currentApplicantEmail;
+                });
+                if (applicant) showApplicantDetails(applicant);
+            }
+            
+            // Update sidebar list
+            if (typeof updateApplicantList === 'function') updateApplicantList();
+            
+            alert(`Successfully recomputed consensus for ${updatedCount} candidates.`);
+        });
+    }
+
     // --- Save State (JSON) ---
     const saveStateBtn = document.getElementById("saveStateBtn");
     const exportStateModal = document.getElementById("exportStateModal");
